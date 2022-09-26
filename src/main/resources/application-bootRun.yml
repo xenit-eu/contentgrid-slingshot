@@ -1,0 +1,32 @@
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: rabbitmq
+    password: rabbitmq
+    
+management.endpoints.web.exposure.include: '*'    
+  
+contentgrid:
+  webhooks:
+    #queue: content-grid.events
+    #headerName: content-grid.hash
+    #requestTimeout: 30 
+    client:            
+       - filter:
+           action: created
+           application: name1
+         endpoint: http://localhost:9999/hooksite1
+         secret: abcd
+       - filter:
+           action: created
+           application: name1
+           type: account-state-zip
+         endpoint: http://localhost:8888/hooksite1
+         secret: abcd     
+       - filter:
+           action: created
+           application: name1
+           type: account-state-zip
+         endpoint: http://localhost:8080/hooksite3
+         secret: abcd     

@@ -1,0 +1,27 @@
+{
+	"filename": "broker-content-sample-data-2022-07.zip",
+	"valueDate": null,
+	"createdDate": "2022-09-19",
+	"contentId": "e6eb7c5e-8118-49ea-a616-be9fdfa9d89d",
+	"contentLength": 196480,
+	"mimeType": "application/zip",
+	"_links": {
+		"self": {
+			"href": "http://localhost:62787/api/accountStateZips/30014"
+		},
+		"accountStateZip": {
+			"href": "http://localhost:62787/api/accountStateZips/30014{?projection}",
+			"templated": true
+		},
+		"insurer": {
+			"href": "http://localhost:62787/api/accountStateZips/30014/insurer"
+		},
+		"extractionReport": {
+			"href": "http://localhost:62787/api/accountStateZips/30014/extractionReport"
+		},
+		"accountStates": {
+			"href": "http://localhost:62787/api/accountStateZips/30014/accountStates{?projection}",
+			"templated": true
+		}
+	}
+}
