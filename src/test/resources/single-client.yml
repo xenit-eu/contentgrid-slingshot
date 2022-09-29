@@ -1,0 +1,11 @@
+contentgrid:
+  webhooks:
+    queue: content-grid.events2
+    headerName: content-grid.hash2
+    requestTimeout: 10 
+    client:            
+       - filter:
+           action: created
+           application: name1
+         endpoint: http://localhost:9999/hooksite1
+         secret: abcd           

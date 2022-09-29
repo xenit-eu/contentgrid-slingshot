@@ -1,0 +1,23 @@
+contentgrid:
+  webhooks:
+    queue: content-grid2.events
+    headerName: content-grid2.hash
+    requestTimeout: 20 
+    client:            
+       - filter:
+           action: created10
+           application: name10
+         endpoint: http://localhost:9999/hooksite10
+         secret: abcde
+       - filter:
+           action: created
+           application: name1
+           type: account-state-zip
+         endpoint: http://localhost:8888/hooksite1
+         secret: abcdef  
+       - filter:
+           action: created
+           application: name1
+           type: account-state
+         endpoint: http://localhost:8080/hooksite3
+         secret: abcdefg    

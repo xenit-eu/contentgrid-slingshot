@@ -1,7 +1,5 @@
 package eu.xenit.contentgrid.webhooks;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +11,6 @@ import org.springframework.integration.dsl.IntegrationFlows;
 @Configuration
 public class WebhookMessageConsumerConfiguration {
 
-    private static Logger LOG = LoggerFactory.getLogger(WebhookMessageConsumerConfiguration.class);
     public static final String CHANNEL_NAME = "content-grid.events";
     public static final String WEBHOOKS_HEADERNAME = "webhooks_headerName";
     public static final String WEBHOOKS_REQUESTTIMEOUT = "webhooks_requestTimeout";

@@ -27,6 +27,13 @@ public interface WebhookClientsProvider {
             this.filters = filters;
             this.secret = secret;
         }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder("WebClientEndpointConfig");
+            sb.append(" [filters=").append(this.filters).append(']');
+            return sb.toString();
+        }
     }
 
     public static class InMemoryWebhookClientsProvider implements WebhookClientsProvider {
@@ -52,5 +59,4 @@ public interface WebhookClientsProvider {
             return List.of();
         }
     }
-
 }
