@@ -13,20 +13,33 @@ contentgrid:
     #headerName: content-grid.hash
     #requestTimeout: 30 
     client:            
-       - filter:
-           action: created
-           application: name1
-         endpoint: http://localhost:9999/hooksite1
-         secret: abcd
-       - filter:
-           action: created
-           application: name1
-           type: account-state-zip
-         endpoint: http://localhost:8888/hooksite1
-         secret: abcd     
-       - filter:
-           action: created
-           application: name1
-           type: account-state-zip
-         endpoint: http://localhost:8080/hooksite3
-         secret: abcd     
+    - filter:
+        action: created
+        application: name1
+        type: account-state-zip
+        version: v1
+        test: fake2
+        test2: abcd
+      endpoints:
+         - uri: http://localhost:9999/hooksite1
+           secret: abcd
+         - uri: http://localhost:9999/antivirus
+           secret: abcd         
+    - filter:
+        action: created
+        application: name1
+        type: account-state-zip
+        version: v1
+        test: fake
+      endpoints: 
+        - uri: http://localhost:8888/hooksite1
+          secret: abcd     
+    - filter:
+        action: created
+        application: name1
+        type: account-state-zip
+        version: v1
+        test: fake
+      endpoints: 
+        - uri: http://localhost:8080/hooksite3
+          secret: abcd     

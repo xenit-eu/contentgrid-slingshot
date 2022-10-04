@@ -13,7 +13,7 @@ public class TestController {
 
     @PostMapping("hooksite3")
     public void test(@RequestHeader("content-grid.hash") String hash, @RequestHeader(HttpHeaders.CONTENT_TYPE) String contentType,
-            @RequestBody Map<String, ?> payload) {
+            @RequestBody(required = false) String payload) {
         System.out.println();
     }
 }

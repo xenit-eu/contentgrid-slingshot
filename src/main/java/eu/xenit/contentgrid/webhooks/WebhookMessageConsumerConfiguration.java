@@ -23,7 +23,7 @@ public class WebhookMessageConsumerConfiguration {
     @Bean
     public IntegrationFlow routeIncomingAmqpMessagesFlow(ConnectionFactory connectionFactory,
             WebhookConfigurationProperties props) {
-        return IntegrationFlows.from(Amqp.inboundAdapter(connectionFactory, props.getQueue()))
+        return IntegrationFlows.from(Amqp.inboundAdapter(connectionFactory, props.getQueue())).transform(message -> message)
                 .enrichHeaders(headers -> {
                     headers.header(WEBHOOKS_HEADERNAME, props.getHeaderName(), true);
                     headers.header(WEBHOOKS_REQUESTTIMEOUT, props.getRequestTimeout(), true);

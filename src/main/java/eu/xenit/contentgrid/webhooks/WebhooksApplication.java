@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 @SpringBootApplication
 @EnableConfigurationProperties(WebhookConfigurationProperties.class)
 public class WebhooksApplication {
@@ -32,8 +34,10 @@ public class WebhooksApplication {
 
     @Bean
     WebhookPublisher webhookPublisher(
-            ObjectProvider<WebhookClientsProvider> webhookClientsProviders) {
+            ObjectProvider<WebhookClientsProvider> webhookClientsProviders,
+            MeterRegistry meterRegistry) {
         return new WebhookPublisher(
-                webhookClientsProviders.orderedStream().collect(Collectors.toList()));
+                webhookClientsProviders.orderedStream().collect(Collectors.toList()),
+                meterRegistry);
     }
 }
