@@ -2,10 +2,13 @@ package eu.xenit.contentgrid.webhooks;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -15,7 +18,7 @@ import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClien
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
-        application, action, type, version
+        application, action, type/* , version */
     }
 
     /**
@@ -84,9 +87,6 @@ public interface WebhookClientsProvider {
             Assert.notNull(endpoint, "endpoint cannot be null");
             Assert.notNull(filters, "filters cannot be null");
 
-            Assert.isTrue(WebhookClientsProvider.hasAllMandatoryHeaders(filters),
-                    "static values are not provided");
-
             this.webClient = WebClient.builder().baseUrl(endpoint.toString()).build();
             this.secret = secret;
             this.filters = filters;
@@ -119,6 +119,59 @@ public interface WebhookClientsProvider {
 
         public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
             return List.of();
+        }
+    }
+
+    public static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
+        private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();
+
+        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
+            String webhookConfigUrl = headers.get("webhookConfigUrl");
+            String deployment = headers.get("deployment");
+            if (!StringUtils.hasText(webhookConfigUrl) || !StringUtils.hasText(deployment)) {
+                // TODO add log
+                return Collections.emptyList();
+            }
+
+            if (deploymentIdClientsMap.containsKey(deployment)) {
+                List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(deployment);
+                return list;
+            } else {
+                WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
+                try {
+                    WebhookClientConfigResponse clients = webClient.get().retrieve().bodyToMono(
+                            new ParameterizedTypeReference<WebhookClientConfigResponse>() {
+                            }).block();
+
+                    List<WebClientEndpointsConfig> collect = clients.getWebhooks().stream()
+                            .map(client -> new WebClientEndpointsConfig(client.getFilter(),
+                                    client.getEndpoints().stream()
+                                            .map(e -> new WebClientEndpointConfig(e.getUri(),
+                                                    e.getSecret(), client.getFilter()))
+                                            .collect(Collectors.toList())))
+                            .collect(Collectors.toList());
+
+                    deploymentIdClientsMap.put(deployment, collect);
+                    return collect;
+                } catch (Throwable e) {
+                    // TODO add log
+                    e.printStackTrace();
+                }
+            }
+
+            return Collections.emptyList();
+        }
+
+        public static class WebhookClientConfigResponse {
+            private List<WebhookClientConfig> webhooks;
+
+            public void setWebhooks(List<WebhookClientConfig> webhooks) {
+                this.webhooks = webhooks;
+            }
+
+            public List<WebhookClientConfig> getWebhooks() {
+                return webhooks != null ? webhooks : Collections.emptyList();
+            }
         }
     }
 }

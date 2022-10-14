@@ -13,6 +13,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 
 @ExtendWith(SpringExtension.class)
 @EnableConfigurationProperties(WebhookConfigurationProperties.class)
@@ -32,13 +33,24 @@ public class WebhookConfigurationSingleClientConfigurationTest {
         Assertions.assertEquals(1, clients.size());
 
         WebhookClientConfig client = clients.get(0);
+        Assertions.assertNotNull(client);
+
+        List<WebhookClientEndpointConfig> endpoints = client.getEndpoints();
+        Assertions.assertEquals(1, endpoints.size());
+
+        WebhookClientEndpointConfig endpointConfig = endpoints.get(0);
+
         Assertions.assertEquals(URI.create("http://localhost:9999/hooksite1"),
-                client.getEndpoint());
-        Assertions.assertEquals("abcd", client.getSecret());
+                endpointConfig.getUri());
+        Assertions.assertEquals("abcd", endpointConfig.getSecret());
 
         Map<String, String> filter = client.getFilter();
         Assertions.assertEquals(2, filter.size());
         Assertions.assertEquals("created", filter.get("action"));
         Assertions.assertEquals("name1", filter.get("application"));
+
+        // WebClientEndpointConfig clientEndpointConfig = new
+        // WebClientEndpointConfig(endpointConfig.getUri(), endpointConfig.getSecret(),
+        // filter);
     }
 }

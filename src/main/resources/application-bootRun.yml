@@ -14,10 +14,6 @@ contentgrid:
     #requestTimeout: 30 
     client:            
     - filter:
-        action: created
-        application: name1
-        type: account-state-zip
-        version: v1
         test: fake2
         test2: abcd
       endpoints:

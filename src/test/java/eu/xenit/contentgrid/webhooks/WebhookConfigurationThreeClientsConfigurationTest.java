@@ -13,6 +13,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 
 @ExtendWith(SpringExtension.class)
 @EnableConfigurationProperties(WebhookConfigurationProperties.class)
@@ -31,16 +32,22 @@ public class WebhookConfigurationThreeClientsConfigurationTest {
         Assertions.assertEquals(3, clients.size());
         
         WebhookClientConfig clientOne = clients.get(0);
-        Assertions.assertEquals(URI.create("http://localhost:9999/hooksite10"), clientOne.getEndpoint());
-        Assertions.assertEquals("abcde", clientOne.getSecret());
+        List<WebhookClientEndpointConfig> clientOneEndpoints = clientOne.getEndpoints();
+        Assertions.assertEquals(1, clientOneEndpoints.size());
+        WebhookClientEndpointConfig clientOneEndpointConfig = clientOneEndpoints.get(0);
+        Assertions.assertEquals(URI.create("http://localhost:9999/hooksite10"), clientOneEndpointConfig.getUri());
+        Assertions.assertEquals("abcde", clientOneEndpointConfig.getSecret());
         Map<String, String> filterOne = clientOne.getFilter();
         Assertions.assertEquals(2, filterOne.size());
         Assertions.assertEquals("created10", filterOne.get("action"));
         Assertions.assertEquals("name10", filterOne.get("application"));
         
         WebhookClientConfig clientTwo = clients.get(1);
-        Assertions.assertEquals(URI.create("http://localhost:8888/hooksite1"), clientTwo.getEndpoint());
-        Assertions.assertEquals("abcdef", clientTwo.getSecret());
+        List<WebhookClientEndpointConfig> clientTwoEndpoints = clientTwo.getEndpoints();
+        Assertions.assertEquals(1, clientTwoEndpoints.size());
+        WebhookClientEndpointConfig clientTwoEndpointConfig = clientTwoEndpoints.get(0);
+        Assertions.assertEquals(URI.create("http://localhost:8888/hooksite1"), clientTwoEndpointConfig.getUri());
+        Assertions.assertEquals("abcdef", clientTwoEndpointConfig.getSecret());
         Map<String, String> filterTwo = clientTwo.getFilter();
         Assertions.assertEquals(3, filterTwo.size());
         Assertions.assertEquals("created", filterTwo.get("action"));
@@ -48,8 +55,11 @@ public class WebhookConfigurationThreeClientsConfigurationTest {
         Assertions.assertEquals("account-state-zip", filterTwo.get("type"));
         
         WebhookClientConfig clientThree = clients.get(2);
-        Assertions.assertEquals(URI.create("http://localhost:8080/hooksite3"), clientThree.getEndpoint());
-        Assertions.assertEquals("abcdefg", clientThree.getSecret());
+        List<WebhookClientEndpointConfig> clientThreeEndpoints = clientThree.getEndpoints();
+        Assertions.assertEquals(1, clientThreeEndpoints.size());
+        WebhookClientEndpointConfig clientThreeEndpointConfig = clientThreeEndpoints.get(0);
+        Assertions.assertEquals(URI.create("http://localhost:8080/hooksite3"), clientThreeEndpointConfig.getUri());
+        Assertions.assertEquals("abcdefg", clientThreeEndpointConfig.getSecret());
         Map<String, String> filterThree = clientThree.getFilter();
         Assertions.assertEquals(3, filterThree.size());
         Assertions.assertEquals("created", filterThree.get("action"));

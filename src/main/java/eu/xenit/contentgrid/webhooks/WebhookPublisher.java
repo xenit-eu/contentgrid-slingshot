@@ -140,7 +140,7 @@ public class WebhookPublisher {
                     // String contentType = (String)headers.compute(HttpHeaders.CONTENT_TYPE, k ->
                     // MediaType.TEXT_PLAIN_VALUE);
                     Timer.Sample sample = Timer.start(meterRegistry);
-                    Tags staticMetricsHeaders = Tags.of(c.filters.entrySet().stream()
+                    Tags staticMetricsHeaders = Tags.of(headers.entrySet().stream()
                             .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
                             .map(e -> Tag.of(e.getKey(), e.getValue()))
                             .collect(Collectors.toList()));
