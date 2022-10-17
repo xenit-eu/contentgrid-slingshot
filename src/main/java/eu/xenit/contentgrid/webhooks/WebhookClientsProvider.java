@@ -98,14 +98,15 @@ public interface WebhookClientsProvider {
         private final List<WebClientEndpointsConfig> clients;
 
         public InMemoryWebhookClientsProvider(List<WebhookClientConfig> clients) {
-            Assert.notNull(clients, "clients cannot be null");
-            this.clients = clients.stream()
-                    .map(client -> new WebClientEndpointsConfig(client.getFilter(),
+            // Assert.notNull(clients, "clients cannot be null");
+            this.clients = clients == null ? Collections.emptyList()
+                    : clients.stream().map(client -> new WebClientEndpointsConfig(
+                            client.getFilter(),
                             client.getEndpoints().stream()
                                     .map(e -> new WebClientEndpointConfig(e.getUri(), e.getSecret(),
                                             client.getFilter()))
                                     .collect(Collectors.toList())))
-                    .collect(Collectors.toList());
+                            .collect(Collectors.toList());
         }
 
         public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {

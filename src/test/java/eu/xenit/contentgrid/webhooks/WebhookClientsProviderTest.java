@@ -1,29 +1,34 @@
 package eu.xenit.contentgrid.webhooks;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebClientEndpointsConfig;
+
 public class WebhookClientsProviderTest {
 
     @Test
-    void when_webhookClientConfig_isEmptyAndHeadersNullOrEmpty_expect_ok() {
+    void when_webhookClientConfig_isEmptyAndHeadersAreEmpty_expect_ok() {
         Assertions.assertEquals(0,
-                new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of()).getClients(null)
-                        .size());
+                new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of())
+                        .getClients(null).size());
+
+        Assertions.assertEquals(0,
+                new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of())
+                        .getClients(Map.of()).size());
+    }
+
+    @Test
+    void  when_webhookClientConfig_isNullAndHeadersAreEmpty_expect_IllegalArgumentException() {
         
         Assertions.assertEquals(0,
-                new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of()).getClients(Map.of())
-                        .size());
-    }
-    
-    @Test
-    void when_webhookClientConfig_isNull_expect_IllegalArgumentException() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new WebhookClientsProvider.InMemoryWebhookClientsProvider(null);
-        });
+                new WebhookClientsProvider.InMemoryWebhookClientsProvider(null)
+                        .getClients(Map.of()).size());
+               
     }
 
     @Test
