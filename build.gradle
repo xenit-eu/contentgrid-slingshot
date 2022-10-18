@@ -50,7 +50,7 @@ tasks.named('test') {
 }
 
 bootBuildImage {
-    def dockerImageRepo = "docker.xenit.eu/contentgrid/${project.name}"
+    def dockerImageRepo = "docker.xenit.eu/open-source/contentgrid/${project.name}"
     imageName = "${dockerImageRepo}:${project.version}"
     tags = "${project.version}".endsWith('SNAPSHOT')
             ? [ "${dockerImageRepo}:SNAPSHOT" ] : null
