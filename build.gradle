@@ -1,6 +1,6 @@
 plugins {
-	id 'org.springframework.boot' version '2.7.4'
-	id 'io.spring.dependency-management' version '1.0.14.RELEASE'
+	id 'org.springframework.boot' version '2.7.5'
+	id 'io.spring.dependency-management' version '1.1.0'
 	id 'java'
 }
 
@@ -50,7 +50,7 @@ tasks.named('test') {
 }
 
 bootBuildImage {
-    def dockerImageRepo = "docker.xenit.eu/contentgrid/${project.name}"
+    def dockerImageRepo = "docker.xenit.eu/open-source/contentgrid/${project.name}"
     imageName = "${dockerImageRepo}:${project.version}"
     tags = "${project.version}".endsWith('SNAPSHOT')
             ? [ "${dockerImageRepo}:SNAPSHOT" ] : null
