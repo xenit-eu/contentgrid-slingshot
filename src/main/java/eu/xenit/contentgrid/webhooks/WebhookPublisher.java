@@ -52,7 +52,7 @@ public class WebhookPublisher {
     }
 
     @ServiceActivator(inputChannel = WebhookMessageConsumerConfiguration.CHANNEL_NAME)
-    public void handleEvent(Message<byte[]> message) {
+    public void handleEvent(Message<String> message) {
         LOG.debug("message received: {}", message);
 
         MessageHeaders messageHeaders = message.getHeaders();
@@ -60,7 +60,7 @@ public class WebhookPublisher {
         Map<String, String> headersAsStringValues = messageHeaders.entrySet().stream()
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toString()));
 
-        byte[] payload = message.getPayload();
+        String payload = message.getPayload();
         if (payload != null) {
             publishAndSubscribe(headersAsStringValues, payload,
                     messageHeaders.get(WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME,
@@ -72,7 +72,7 @@ public class WebhookPublisher {
         }
     }
 
-    void publishAndSubscribe(final Map<String, String> headers, final byte[] payload,
+    void publishAndSubscribe(final Map<String, String> headers, final String payload,
             final String headerName, final Long requestTimeoutInseconds) {
 
         FluxData fluxData = fluxData(headers, payload, headerName, requestTimeoutInseconds);
@@ -84,7 +84,7 @@ public class WebhookPublisher {
         }
     }
 
-    FluxData fluxData(final Map<String, String> headers, final byte[] payload,
+    FluxData fluxData(final Map<String, String> headers, final String payload,
             final String headerName, final Long requestTimeoutInseconds) {
 
         if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
@@ -162,7 +162,8 @@ public class WebhookPublisher {
                                      */
                                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> {
                                         throw new WebhookDeliveryException(
-                                                "External Service failed to process after max retries",
+                                                "External Service failed to process after max retries: "
+                                                        + c.endpoint,
                                                 HttpStatus.SERVICE_UNAVAILABLE);
                                     }))
                             .doOnError(ex -> sample.stop(meterRegistry.timer("webhooks_calls",
@@ -213,8 +214,8 @@ public class WebhookPublisher {
         return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
     }
 
-    static String hmac(byte[] secretBytes, byte[] payload) {
-        return Hashing.hmacSha256(secretBytes).hashBytes(payload).toString();
+    static String hmac(byte[] secretBytes, String payload) {
+        return Hashing.hmacSha256(secretBytes).hashBytes(payload.getBytes()).toString();
     }
 
     @SuppressWarnings("serial")

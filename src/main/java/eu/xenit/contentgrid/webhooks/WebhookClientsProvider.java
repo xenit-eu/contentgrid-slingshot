@@ -18,7 +18,7 @@ import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClien
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
-        application, action, type/* , version */
+        applicationId, deploymentId, type/* , version */
     }
 
     /**
@@ -32,7 +32,7 @@ public interface WebhookClientsProvider {
         }
 
         return Arrays.stream(MANDATORY_HEADERS.values())
-                .anyMatch(e -> e.name().equals(headerName.toLowerCase()));
+                .anyMatch(e -> e.name().toLowerCase().equals(headerName.toLowerCase()));
     }
 
     public static boolean hasAllMandatoryHeaders(Map<String, ?> filter) {
@@ -41,7 +41,7 @@ public interface WebhookClientsProvider {
             return false;
         }
         return filter.entrySet().stream().filter(e -> isMandatoryHeader(e.getKey()))
-                .filter(e -> e.getValue() != null).collect(Collectors.counting()) == length;
+                .filter(k -> k != null).collect(Collectors.counting()) == length;
     }
 
     /**
@@ -82,14 +82,16 @@ public interface WebhookClientsProvider {
         final WebClient webClient;
         final Map<String, String> filters;
         final String secret;
+        final String endpoint;
 
         WebClientEndpointConfig(URI endpoint, String secret, Map<String, String> filters) {
             Assert.notNull(endpoint, "endpoint cannot be null");
             Assert.notNull(filters, "filters cannot be null");
 
-            this.webClient = WebClient.builder().baseUrl(endpoint.toString()).build();
+            this.endpoint = endpoint.toString();
             this.secret = secret;
             this.filters = filters;
+            this.webClient = WebClient.builder().baseUrl(this.endpoint).build();
         }
 
     }
@@ -128,23 +130,23 @@ public interface WebhookClientsProvider {
 
         public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
             String webhookConfigUrl = headers.get("webhookConfigUrl");
-            String deployment = headers.get("deployment");
-            if (!StringUtils.hasText(webhookConfigUrl) || !StringUtils.hasText(deployment)) {
+            //String deployment = headers.get("deploymentId");
+            if (!StringUtils.hasText(webhookConfigUrl)/* || !StringUtils.hasText(deployment)*/) {
                 // TODO add log
                 return Collections.emptyList();
             }
 
-            if (deploymentIdClientsMap.containsKey(deployment)) {
-                List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(deployment);
+            if (deploymentIdClientsMap.containsKey(webhookConfigUrl)) {
+                List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(webhookConfigUrl);
                 return list;
             } else {
                 WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
                 try {
-                    WebhookClientConfigResponse clients = webClient.get().retrieve().bodyToMono(
-                            new ParameterizedTypeReference<WebhookClientConfigResponse>() {
+                    WebhookConfigResponse clients = webClient.get().retrieve().bodyToMono(
+                            new ParameterizedTypeReference<WebhookConfigResponse>() {
                             }).block();
 
-                    List<WebClientEndpointsConfig> collect = clients.getWebhooks().stream()
+                    List<WebClientEndpointsConfig> collect = clients.getWebhooks().getClient().stream()
                             .map(client -> new WebClientEndpointsConfig(client.getFilter(),
                                     client.getEndpoints().stream()
                                             .map(e -> new WebClientEndpointConfig(e.getUri(),
@@ -152,7 +154,7 @@ public interface WebhookClientsProvider {
                                             .collect(Collectors.toList())))
                             .collect(Collectors.toList());
 
-                    deploymentIdClientsMap.put(deployment, collect);
+                    deploymentIdClientsMap.put(webhookConfigUrl, collect);
                     return collect;
                 } catch (Throwable e) {
                     // TODO add log
@@ -164,14 +166,26 @@ public interface WebhookClientsProvider {
         }
 
         public static class WebhookClientConfigResponse {
-            private List<WebhookClientConfig> webhooks;
-
-            public void setWebhooks(List<WebhookClientConfig> webhooks) {
-                this.webhooks = webhooks;
+            private List<WebhookClientConfig> client;
+            
+            public void setClient(List<WebhookClientConfig> client) {
+                this.client = client;
             }
 
-            public List<WebhookClientConfig> getWebhooks() {
-                return webhooks != null ? webhooks : Collections.emptyList();
+            public List<WebhookClientConfig> getClient() {
+                return client != null ? client : Collections.emptyList();
+            }
+        }
+        
+        public static class WebhookConfigResponse {
+            private WebhookClientConfigResponse webhooks;
+
+            public WebhookClientConfigResponse getWebhooks() {
+                return webhooks != null ? webhooks : new WebhookClientConfigResponse();
+            }
+            
+            public void setWebhooks(WebhookClientConfigResponse webhooks) {
+                this.webhooks = webhooks;
             }
         }
     }
