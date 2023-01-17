@@ -14,6 +14,8 @@ import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClien
 public class WebhookPublisherWithoutPublishingTest {
 
     // TODO add test without required provided
+    
+    WebhookConfigurationProperties props = new WebhookConfigurationProperties();
 
     @Test
     void when_singleClient_isConfiguredWithoutFilters_expect_ok() {
@@ -30,7 +32,7 @@ public class WebhookPublisherWithoutPublishingTest {
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
                 .size());
 
-        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -72,7 +74,7 @@ public class WebhookPublisherWithoutPublishingTest {
                                         "app1", "action", "act", "type", "type", "version", "v1"))
                                 .size());
 
-        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -111,7 +113,7 @@ public class WebhookPublisherWithoutPublishingTest {
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
                 .size());
 
-        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -153,7 +155,7 @@ public class WebhookPublisherWithoutPublishingTest {
                                         "app1", "action", "act", "type", "type", "version", "v1"))
                                 .size());
 
-        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of());
         Assertions.assertEquals(0, oneClientFound.size());

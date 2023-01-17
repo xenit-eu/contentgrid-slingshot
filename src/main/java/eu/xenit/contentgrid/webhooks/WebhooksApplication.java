@@ -32,17 +32,18 @@ public class WebhooksApplication {
     WebhookClientsProvider dbWebhookClientsProvider() {
         return new WebhookClientsProvider.DatabaseWebhookClientsProvider();
     }
-    
+
     @Bean
-    WebhookClientsProvider contentGridApiWebhookClientsProvider() {
-        return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider();
+    WebhookClientsProvider contentGridApiWebhookClientsProvider(
+            WebhookConfigurationProperties props) {
+        return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider(props);
     }
 
     @Bean
-    WebhookPublisher webhookPublisher(
+    WebhookPublisher webhookPublisher(WebhookConfigurationProperties props,
             ObjectProvider<WebhookClientsProvider> webhookClientsProviders,
             @Nullable MeterRegistry meterRegistry) {
-        return new WebhookPublisher(
+        return new WebhookPublisher(props,
                 webhookClientsProviders.orderedStream().collect(Collectors.toList()),
                 meterRegistry);
     }

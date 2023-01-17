@@ -2,6 +2,7 @@ package eu.xenit.contentgrid.webhooks;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,13 +43,16 @@ public class WebhookPublisher {
             .map(e -> Tag.of(e.name(), "")).collect(Collectors.toList());
 
     private final List<WebhookClientsProvider> providers;
-    final MeterRegistry meterRegistry;
+    private final MeterRegistry meterRegistry;
+    private final WebhookConfigurationProperties props;
 
-    public WebhookPublisher(List<WebhookClientsProvider> providers, MeterRegistry meterRegistry) {
+    public WebhookPublisher(WebhookConfigurationProperties props,
+            List<WebhookClientsProvider> providers, MeterRegistry meterRegistry) {
         Assert.notNull(providers, "provider cannot be null");
 
         this.providers = providers;
         this.meterRegistry = meterRegistry;
+        this.props = props;
     }
 
     @ServiceActivator(inputChannel = WebhookMessageConsumerConfiguration.CHANNEL_NAME)
@@ -62,11 +66,8 @@ public class WebhookPublisher {
 
         String payload = message.getPayload();
         if (payload != null) {
-            publishAndSubscribe(headersAsStringValues, payload,
-                    messageHeaders.get(WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME,
-                            String.class),
-                    messageHeaders.get(WebhookMessageConsumerConfiguration.WEBHOOKS_REQUESTTIMEOUT,
-                            Long.class));
+            publishAndSubscribe(headersAsStringValues, payload, props.getHeaderName(),
+                    props.getRequestTimeout());
         } else {
             LOG.warn("message received: {} with null payload", message);
         }
@@ -87,6 +88,21 @@ public class WebhookPublisher {
     FluxData fluxData(final Map<String, String> headers, final String payload,
             final String headerName, final Long requestTimeoutInseconds) {
 
+        String webhookConfigUrl = headers.get("webhookConfigUrl");
+        if (!StringUtils.hasText(webhookConfigUrl)) {
+            Tags tags = Tags.of(headers.entrySet().stream()
+                    .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
+                    .map(e -> Tag.of(e.getKey(), e.getValue().toString()))
+                    .collect(Collectors.toList()));
+            
+            Counter counter = Counter.builder("webhooks_missing_headers")
+                    .tags(EMPTY_MANDATORY_TAGS).tags(tags).tags(Tags.of("webhookConfigUrl", ""))
+                    .description("Number of webhook messages without webhookConfigUrl header")
+                    .register(meterRegistry);
+            counter.increment();
+            return new FluxData(Flux.empty(), 0);
+        }
+
         if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             Tags tags = Tags.of(headers.entrySet().stream()
                     .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
@@ -94,7 +110,7 @@ public class WebhookPublisher {
                     .collect(Collectors.toList()));
 
             Counter counter = Counter.builder("webhooks_missing_headers").tags(EMPTY_MANDATORY_TAGS)
-                    .tags(tags).description("Number of webhook messages without mandatory headers")
+                    .tags(tags).tags(Tags.of("webhookConfigUrl", webhookConfigUrl)).description("Number of webhook messages without mandatory headers")
                     .register(meterRegistry);
             counter.increment();
             return new FluxData(Flux.empty(), 0);
@@ -108,7 +124,7 @@ public class WebhookPublisher {
                     .collect(Collectors.toList()));
 
             Counter counter = Counter.builder("webhooks_no_matching_clients")
-                    .tags(EMPTY_MANDATORY_TAGS).tags(tags)
+                    .tags(EMPTY_MANDATORY_TAGS).tags(tags).tags(Tags.of("webhookConfigUrl", webhookConfigUrl))
                     .description("Number of webhook messages without matching clients")
                     .register(meterRegistry);
             counter.increment();
@@ -119,7 +135,6 @@ public class WebhookPublisher {
         Flux<ResponseEntity<Void>> flux = Flux
                 .fromStream(matchedClients.stream().flatMap(c -> c.getEndpoints().stream()))
                 .flatMap(c -> {
-
                     String hash = null;
                     if (StringUtils.hasText(c.secret)) {
                         byte[] bytes = c.secret.getBytes(StandardCharsets.UTF_8);
@@ -133,12 +148,6 @@ public class WebhookPublisher {
                         contentType = (String) headers.get("contentType");
                     }
 
-//                    MediaType contentType = (MediaType) headers.compute(HttpHeaders.CONTENT_TYPE,
-//                            (k, v) -> v == null ? MediaType.TEXT_PLAIN
-//                                    : MediaType.valueOf((String) v));
-
-                    // String contentType = (String)headers.compute(HttpHeaders.CONTENT_TYPE, k ->
-                    // MediaType.TEXT_PLAIN_VALUE);
                     Timer.Sample sample = Timer.start(meterRegistry);
                     Tags staticMetricsHeaders = Tags.of(headers.entrySet().stream()
                             .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))

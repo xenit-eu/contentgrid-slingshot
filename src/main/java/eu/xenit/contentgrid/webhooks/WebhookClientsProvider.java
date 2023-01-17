@@ -1,6 +1,7 @@
 package eu.xenit.contentgrid.webhooks;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -8,17 +9,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.webhooks.WebhookPublisher.WebhookDeliveryException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import reactor.util.retry.Retry;
 
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
-        applicationId, deploymentId, type/* , version */
+        applicationId, deploymentId, type
     }
 
     /**
@@ -45,7 +54,7 @@ public interface WebhookClientsProvider {
     }
 
     /**
-     * @return should never return null
+     * @return should never return null or throw an exception
      */
     public List<WebClientEndpointsConfig> getClients(Map<String, String> headers);
 
@@ -126,43 +135,47 @@ public interface WebhookClientsProvider {
     }
 
     public static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
-        private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();
-
+        private static Logger LOG = LoggerFactory.getLogger(ContentGridApiWebhookClientsProvider.class);
+        
+        private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();        
+        private final WebhookConfigurationProperties props;
+        
+        public ContentGridApiWebhookClientsProvider(WebhookConfigurationProperties props) {
+            this.props = props;
+        }
+        
         public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
             String webhookConfigUrl = headers.get("webhookConfigUrl");
-            //String deployment = headers.get("deploymentId");
-            if (!StringUtils.hasText(webhookConfigUrl)/* || !StringUtils.hasText(deployment)*/) {
-                // TODO add log
+            if (!StringUtils.hasText(webhookConfigUrl)) {
+                // this is a safety check, we should not even come in here if this header is not present
                 return Collections.emptyList();
             }
 
             if (deploymentIdClientsMap.containsKey(webhookConfigUrl)) {
                 List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(webhookConfigUrl);
                 return list;
-            } else {
-                WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
-                try {
-                    WebhookConfigResponse clients = webClient.get().retrieve().bodyToMono(
-                            new ParameterizedTypeReference<WebhookConfigResponse>() {
-                            }).block();
+            } 
+            WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
+            try {
+                WebhookConfigResponse clients = webClient.get().retrieve().bodyToMono(
+                        new ParameterizedTypeReference<WebhookConfigResponse>() {
+                        }).block();
+                
 
-                    List<WebClientEndpointsConfig> collect = clients.getWebhooks().getClient().stream()
-                            .map(client -> new WebClientEndpointsConfig(client.getFilter(),
-                                    client.getEndpoints().stream()
-                                            .map(e -> new WebClientEndpointConfig(e.getUri(),
-                                                    e.getSecret(), client.getFilter()))
-                                            .collect(Collectors.toList())))
-                            .collect(Collectors.toList());
+                List<WebClientEndpointsConfig> collect = clients.getWebhooks().getClient().stream()
+                        .map(client -> new WebClientEndpointsConfig(client.getFilter(),
+                                client.getEndpoints().stream()
+                                        .map(e -> new WebClientEndpointConfig(e.getUri(),
+                                                e.getSecret(), client.getFilter()))
+                                        .collect(Collectors.toList())))
+                        .collect(Collectors.toList());
 
-                    deploymentIdClientsMap.put(webhookConfigUrl, collect);
-                    return collect;
-                } catch (Throwable e) {
-                    // TODO add log
-                    e.printStackTrace();
-                }
+                deploymentIdClientsMap.put(webhookConfigUrl, collect);
+                return collect;
+            } catch (Throwable e1) {
+                LOG.warn("could not retrieve the webhook config from: {}", webhookConfigUrl);
+                return Collections.emptyList();
             }
-
-            return Collections.emptyList();
         }
 
         public static class WebhookClientConfigResponse {

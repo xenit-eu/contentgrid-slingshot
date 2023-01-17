@@ -30,6 +30,7 @@ import reactor.test.StepVerifier;
 public class WebhookPublisherPublishingTest {
 
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    WebhookConfigurationProperties props = new WebhookConfigurationProperties();
 
 //    @Test
 //    void when_publisherHandlesMessage_expect_reactiveSubscribeOk() {
@@ -60,7 +61,7 @@ public class WebhookPublisherPublishingTest {
                 Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
                 .size());
 
-        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
         FluxData fluxData = publisher.fluxData(
                 Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
                 "payload_test", null, null);
@@ -90,7 +91,7 @@ public class WebhookPublisherPublishingTest {
                     Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
                     .size());
 
-            WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider),
+            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
                     Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
@@ -128,7 +129,7 @@ public class WebhookPublisherPublishingTest {
                     Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
                     .size());
 
-            WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider),
+            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
                     Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
