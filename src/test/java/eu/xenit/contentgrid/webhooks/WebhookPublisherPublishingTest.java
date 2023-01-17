@@ -63,7 +63,8 @@ public class WebhookPublisherPublishingTest {
 
         WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
         FluxData fluxData = publisher.fluxData(
-                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
+                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
+                        "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
                 "payload_test", null, null);
 
         Assertions.assertEquals(1, fluxData.getSize());
@@ -94,7 +95,8 @@ public class WebhookPublisherPublishingTest {
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
+                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
+                            "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
                     "payload_test",
                     WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME, null);
             Assertions.assertEquals(1, fluxData.getSize());
@@ -132,7 +134,8 @@ public class WebhookPublisherPublishingTest {
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"),
+                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
+                            "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
                     "payload_test", WebhookConfigurationProperties.HEADERNAME_DEFAULT,
                     null);
             Assertions.assertEquals(1, fluxData.getSize());
