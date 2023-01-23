@@ -1,7 +1,6 @@
 package eu.xenit.contentgrid.webhooks;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -9,21 +8,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
-import eu.xenit.contentgrid.webhooks.WebhookPublisher.WebhookDeliveryException;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
-import reactor.util.retry.Retry;
+import reactor.netty.http.client.HttpClient;
 
+
+// TODO could be renamed to WebhookConfigProvider and webhooks.client should become webhooks.config
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
@@ -54,10 +50,48 @@ public interface WebhookClientsProvider {
     }
 
     /**
-     * @return should never return null or throw an exception
+     * @return list of webhooks client configuration but should never return null or throw any exception
      */
-    public List<WebClientEndpointsConfig> getClients(Map<String, String> headers);
+    public WebConfigProviderResponse getClients(Map<String, String> headers);
+    
+    static class WebConfigProviderResponse {       
+        private final List<WebClientEndpointsConfig> configList;
+        private final WebConfigProviderStatus status;
+        
+        static enum WebConfigProviderStatus {
+           success, config_location_missing, cached, failure
+        }
 
+        public WebConfigProviderResponse() {
+            this(WebConfigProviderStatus.success);
+        }
+        
+        public WebConfigProviderResponse(
+                WebConfigProviderStatus status) {
+            this(status, Collections.emptyList());
+        }
+
+        public WebConfigProviderResponse(List<WebClientEndpointsConfig> configList) {
+            this(WebConfigProviderStatus.success, configList);
+        }
+        
+        public WebConfigProviderResponse(
+                WebConfigProviderStatus status, List<WebClientEndpointsConfig> configList) {
+            Assert.notNull(configList, "configList cannot be null");
+            Assert.notNull(status, "status cannot be null");
+            this.configList = configList;
+            this.status = status;
+        }
+        
+        public List<WebClientEndpointsConfig> getConfigList() {
+            return configList;
+        }
+        
+        public WebConfigProviderStatus getStatus() {
+            return status;
+        }
+    }
+    
     static class WebClientEndpointsConfig {
         final Map<String, String> filters;
         final List<WebClientEndpointConfig> endpoints;
@@ -100,9 +134,10 @@ public interface WebhookClientsProvider {
             this.endpoint = endpoint.toString();
             this.secret = secret;
             this.filters = filters;
-            this.webClient = WebClient.builder().baseUrl(this.endpoint).build();
+            this.webClient = WebClient.builder().clientConnector(new ReactorClientHttpConnector(
+                    HttpClient.create().followRedirect(false)
+            )).baseUrl(this.endpoint).build();
         }
-
     }
 
     public static class InMemoryWebhookClientsProvider implements WebhookClientsProvider {
@@ -120,23 +155,21 @@ public interface WebhookClientsProvider {
                             .collect(Collectors.toList());
         }
 
-        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
-            return clients.stream()
+        public WebConfigProviderResponse getClients(Map<String, String> headers) {
+            return new WebConfigProviderResponse(clients.stream()
                     .filter(client -> WebhookPublisher.areMatchingHeaders(client.filters, headers))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList()));
         }
     }
 
     public static class DatabaseWebhookClientsProvider implements WebhookClientsProvider {
 
-        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
-            return List.of();
+        public WebConfigProviderResponse getClients(Map<String, String> headers) {
+            return new WebConfigProviderResponse();
         }
     }
 
     public static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
-        private static Logger LOG = LoggerFactory.getLogger(ContentGridApiWebhookClientsProvider.class);
-        
         private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();        
         private final WebhookConfigurationProperties props;
         
@@ -144,25 +177,25 @@ public interface WebhookClientsProvider {
             this.props = props;
         }
         
-        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
+        public WebConfigProviderResponse getClients(Map<String, String> headers) {
             String webhookConfigUrl = headers.get("webhookConfigUrl");
             if (!StringUtils.hasText(webhookConfigUrl)) {
                 // this is a safety check, we should not even come in here if this header is not present
-                return Collections.emptyList();
+                return new WebConfigProviderResponse(WebConfigProviderStatus.config_location_missing);
             }
 
             if (deploymentIdClientsMap.containsKey(webhookConfigUrl)) {
                 List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(webhookConfigUrl);
-                return list;
+                return new WebConfigProviderResponse(WebConfigProviderStatus.cached, list);
             } 
-            WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
+            
             try {
+                WebClient webClient = WebClient.builder().baseUrl(webhookConfigUrl).build();
                 WebhookConfigResponse clients = webClient.get().retrieve().bodyToMono(
                         new ParameterizedTypeReference<WebhookConfigResponse>() {
                         }).block();
                 
-
-                List<WebClientEndpointsConfig> collect = clients.getWebhooks().getClient().stream()
+                List<WebClientEndpointsConfig> list = clients.getWebhooks().getClient().stream()
                         .map(client -> new WebClientEndpointsConfig(client.getFilter(),
                                 client.getEndpoints().stream()
                                         .map(e -> new WebClientEndpointConfig(e.getUri(),
@@ -170,11 +203,10 @@ public interface WebhookClientsProvider {
                                         .collect(Collectors.toList())))
                         .collect(Collectors.toList());
 
-                deploymentIdClientsMap.put(webhookConfigUrl, collect);
-                return collect;
-            } catch (Throwable e1) {
-                LOG.warn("could not retrieve the webhook config from: {}", webhookConfigUrl);
-                return Collections.emptyList();
+                deploymentIdClientsMap.put(webhookConfigUrl, list);
+                return new WebConfigProviderResponse(list);
+            } catch (Throwable ex) {
+                return new WebConfigProviderResponse(WebConfigProviderStatus.failure);            
             }
         }
 

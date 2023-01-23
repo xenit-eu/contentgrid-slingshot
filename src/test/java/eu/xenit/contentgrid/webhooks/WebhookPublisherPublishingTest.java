@@ -17,7 +17,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 import eu.xenit.contentgrid.webhooks.WebhookPublisher.FluxData;
-import eu.xenit.contentgrid.webhooks.WebhookPublisher.WebhookDeliveryException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
@@ -47,30 +46,30 @@ public class WebhookPublisherPublishingTest {
 //    }
 
     @Test
-    void when_endpointIsNotReachable_expect_WebhookDeliveryException() {
+    void when_endpointIsNotReachable_expect_ok() {
         WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
         WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
         clientConfig1EndpointConfig.setUri(URI.create("http://mockserver/hook1"));
         clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-        clientConfig1.setFilter(
-                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"));
+        clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd", "action",
+                "act", "type", "type", "version", "v1"));
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig1));
-        Assertions.assertEquals(1, inMemoryProvider.getClients(
-                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
-                .size());
+        Assertions.assertEquals(1,
+                inMemoryProvider
+                        .getClients(Map.of("applicationId", "app1", "deploymentId", "abcd",
+                                "action", "act", "type", "type", "version", "v1"))
+                        .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
+                meterRegistry);
         FluxData fluxData = publisher.fluxData(
-                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
-                        "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
+                        "type", "version", "v1", "webhookConfigUrl", "http://test"),
                 "payload_test", null, null);
 
         Assertions.assertEquals(1, fluxData.getSize());
-
-        StepVerifier.create(fluxData.getFlux()).expectError(WebhookDeliveryException.class)
-                .verifyThenAssertThat();
     }
 
     @Test
@@ -83,22 +82,23 @@ public class WebhookPublisherPublishingTest {
             WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
             clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type",
-                    "version", "v1"));
+            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd",
+                    "action", "act", "type", "type", "version", "v1"));
 
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                     List.of(clientConfig1));
-            Assertions.assertEquals(1, inMemoryProvider.getClients(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
-                    .size());
+            Assertions.assertEquals(1,
+                    inMemoryProvider
+                            .getClients(Map.of("applicationId", "app1", "deploymentId", "abcd",
+                                    "action", "act", "type", "type", "version", "v1"))
+                            .getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
-                            "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
-                    "payload_test",
-                    WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME, null);
+                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
+                            "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                    "payload_test", WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME, null);
             Assertions.assertEquals(1, fluxData.getSize());
 
             StepVerifier.create(fluxData.getFlux())
@@ -122,22 +122,21 @@ public class WebhookPublisherPublishingTest {
             clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
             clientConfig1EndpointConfig.setSecret("secretKey");
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type",
-                    "version", "v1"));
+            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd",
+                    "action", "act", "type", "type", "version", "v1"));
 
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                     List.of(clientConfig1));
-            Assertions.assertEquals(1, inMemoryProvider.getClients(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type", "type", "version", "v1"))
-                    .size());
+            Assertions.assertEquals(1,
+                    inMemoryProvider.getClients(Map.of("applicationId", "app1", "deploymentId",
+                            "abcd", "action", "act", "type", "type", "version", "v1")).getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", 
-                            "type", "type", "version", "v1", "webhookConfigUrl", "http://test"),
-                    "payload_test", WebhookConfigurationProperties.HEADERNAME_DEFAULT,
-                    null);
+                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
+                            "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                    "payload_test", WebhookConfigurationProperties.HEADER_NAME_DEFAULT, null);
             Assertions.assertEquals(1, fluxData.getSize());
 
             StepVerifier.create(fluxData.getFlux())
@@ -149,9 +148,7 @@ public class WebhookPublisherPublishingTest {
             byte[] bytes = clientConfig1EndpointConfig.getSecret().getBytes(StandardCharsets.UTF_8);
             String hash = WebhookPublisher.hmac(bytes, "payload_test");
             Assertions.assertEquals(hash,
-                    recordedRequest.getHeader(WebhookConfigurationProperties.HEADERNAME_DEFAULT));
+                    recordedRequest.getHeader(WebhookConfigurationProperties.HEADER_NAME_DEFAULT));
         }
     }
-
-    // TODO test how many retries have been executed
 }

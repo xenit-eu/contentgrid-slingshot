@@ -15,12 +15,12 @@ import org.springframework.util.Assert;
 @RefreshScope
 public class WebhookConfigurationProperties {
 
-    public static final Long REQUESTTIMEOUT_DEFAULT = 30L;
-    public static final String HEADERNAME_DEFAULT = "contentgrid.hash";
+    public static final Long REQUEST_TIMEOUT_DEFAULT = 5L;
+    public static final String HEADER_NAME_DEFAULT = "contentgrid.hash";
 
     private String queue = "contentgrid.events"; // queue is not refreshable
-    private String headerName = HEADERNAME_DEFAULT;
-    private Long requestTimeout = REQUESTTIMEOUT_DEFAULT;
+    private String headerName = HEADER_NAME_DEFAULT;
+    private Long requestTimeout = REQUEST_TIMEOUT_DEFAULT;
     private List<WebhookClientConfig> client;
 
     public List<WebhookClientConfig> getClient() {

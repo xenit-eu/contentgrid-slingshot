@@ -26,14 +26,16 @@ import com.google.common.hash.Hashing;
 
 import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.MANDATORY_HEADERS;
 import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebClientEndpointsConfig;
+import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse;
+import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Signal;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.retry.Retry;
 
 public class WebhookPublisher {
 
@@ -70,6 +72,7 @@ public class WebhookPublisher {
                     props.getRequestTimeout());
         } else {
             LOG.warn("message received: {} with null payload", message);
+            recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headersAsStringValues);
         }
     }
 
@@ -85,53 +88,89 @@ public class WebhookPublisher {
         }
     }
 
+    private void recordMessageReceivedMetric(MessageReceivedStatus messageStatus,
+            final Map<String, String> headers) {
+        Tags overridMandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
+                .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
+                .map(e -> Tag.of(e.getKey(), e.getValue().toString()))
+                .collect(Collectors.toList()));
+
+        Counter counter = Counter.builder("messages").tags(EMPTY_MANDATORY_TAGS)
+                .tags(overridMandatoryTagsWithValues).tag("status", messageStatus.name())
+                .description("Number of webhook messages received").register(meterRegistry);
+
+        counter.increment();
+    }
+
+    private void recordWebhookCallMetric(Timer.Sample sample, Signal<ResponseEntity<Void>> responseSignal,
+            final Map<String, String> headers) {
+        
+        if(responseSignal.isOnComplete() || responseSignal.isOnSubscribe()) {
+            // these signals should not be handled
+            return;
+        }
+
+        WebhookEndpointInvocationStatus webhookInvocationStatus = responseSignal.isOnError()
+                ? WebhookEndpointInvocationStatus.failure
+                : WebhookEndpointInvocationStatus.success;
+        
+//        TODO check if we need to know each specific exception and create the metric accordingly
+//        Throwable throwable = response.getThrowable();
+//        Throwable rootCause = throwable;
+//        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+//            rootCause = rootCause.getCause();
+//        }
+        
+        ResponseEntity<Void> responseEntity = responseSignal.get();        
+        int httpStatusCode = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().value() : 0;
+        String httpStatusSeries = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().series().name() : "-";
+        
+        // we are sure that all mandatory tags are present
+        Tags mandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
+                .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
+                .map(e -> Tag.of(e.getKey(), e.getValue())).collect(Collectors.toList()));
+
+        Tags t = mandatoryTagsWithValues.and("status", webhookInvocationStatus.name())
+                //.and("status", httpStatus.getReasonPhrase())
+                .and("http", String.valueOf(httpStatusCode))
+                .and("http-series", httpStatusSeries);
+        
+        sample.stop(meterRegistry.timer("webhooks", t));
+    }
+
+    private void recordApiConfigLookupCallMetric(WebConfigProviderStatus webConfigProviderStatus,
+            final Map<String, String> headers) {
+        // we are sure that all mandatory tags are present
+        Tags mandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
+                .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
+                .map(e -> Tag.of(e.getKey(), e.getValue())).collect(Collectors.toList()));
+
+        Counter counter = Counter.builder("api_config_lookups").tags(mandatoryTagsWithValues)
+                .tag("status", webConfigProviderStatus.name())
+                .description("Number of api config lookup calls").register(meterRegistry);
+        counter.increment();
+    }
+
     FluxData fluxData(final Map<String, String> headers, final String payload,
             final String headerName, final Long requestTimeoutInseconds) {
 
-        String webhookConfigUrl = headers.get("webhookConfigUrl");
-        if (!StringUtils.hasText(webhookConfigUrl)) {
-            Tags tags = Tags.of(headers.entrySet().stream()
-                    .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
-                    .map(e -> Tag.of(e.getKey(), e.getValue().toString()))
-                    .collect(Collectors.toList()));
-            
-            Counter counter = Counter.builder("webhooks_missing_headers")
-                    .tags(EMPTY_MANDATORY_TAGS).tags(tags).tags(Tags.of("webhookConfigUrl", ""))
-                    .description("Number of webhook messages without webhookConfigUrl header")
-                    .register(meterRegistry);
-            counter.increment();
-            return new FluxData(Flux.empty(), 0);
-        }
-
         if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
-            Tags tags = Tags.of(headers.entrySet().stream()
-                    .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
-                    .map(e -> Tag.of(e.getKey(), e.getValue().toString()))
-                    .collect(Collectors.toList()));
-
-            Counter counter = Counter.builder("webhooks_missing_headers").tags(EMPTY_MANDATORY_TAGS)
-                    .tags(tags).tags(Tags.of("webhookConfigUrl", webhookConfigUrl)).description("Number of webhook messages without mandatory headers")
-                    .register(meterRegistry);
-            counter.increment();
+            // case were the message did not have all the mandatory headers
+            recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers);
             return new FluxData(Flux.empty(), 0);
         }
 
         List<WebClientEndpointsConfig> matchedClients = findMatchingClients(headers);
         if (matchedClients.isEmpty()) {
-            Tags tags = Tags.of(headers.entrySet().stream()
-                    .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
-                    .map(e -> Tag.of(e.getKey(), e.getValue().toString()))
-                    .collect(Collectors.toList()));
-
-            Counter counter = Counter.builder("webhooks_no_matching_clients")
-                    .tags(EMPTY_MANDATORY_TAGS).tags(tags).tags(Tags.of("webhookConfigUrl", webhookConfigUrl))
-                    .description("Number of webhook messages without matching clients")
-                    .register(meterRegistry);
-            counter.increment();
+            // case where all providers returned an empty list
+            recordMessageReceivedMetric(MessageReceivedStatus.no_matching_config, headers);
             return new FluxData(Flux.empty(), 0);
         }
-        LOG.debug("clients matched: {} for headers: {}", matchedClients.size(), headers);
 
+        // case where we have a valid message
+        recordMessageReceivedMetric(MessageReceivedStatus.valid, headers);
+
+        LOG.debug("clients matched: {} for headers: {}", matchedClients.size(), headers);
         Flux<ResponseEntity<Void>> flux = Flux
                 .fromStream(matchedClients.stream().flatMap(c -> c.getEndpoints().stream()))
                 .flatMap(c -> {
@@ -149,36 +188,25 @@ public class WebhookPublisher {
                     }
 
                     Timer.Sample sample = Timer.start(meterRegistry);
-                    Tags staticMetricsHeaders = Tags.of(headers.entrySet().stream()
-                            .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
-                            .map(e -> Tag.of(e.getKey(), e.getValue()))
-                            .collect(Collectors.toList()));
 
                     return c.webClient.post().contentType(contentType == null ? MediaType.TEXT_PLAIN
                             : MediaType.valueOf(contentType)).headers(h -> {
                                 String headerHashValue = hashValue.orElse("-none-");
                                 h.add(headerName != null ? headerName
-                                        : WebhookConfigurationProperties.HEADERNAME_DEFAULT,
+                                        : WebhookConfigurationProperties.HEADER_NAME_DEFAULT,
                                         headerHashValue);
                             }).body(BodyInserters.fromValue(payload)).retrieve().toBodilessEntity()
                             .timeout(Duration.ofSeconds(requestTimeoutInseconds != null
                                     ? requestTimeoutInseconds
-                                    : WebhookConfigurationProperties.REQUESTTIMEOUT_DEFAULT))
-                            .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)).jitter(0.75)
-                                    /*
-                                     * .filter(throwable -> !(throwable instanceof
-                                     * WebhookDeliveryException))
-                                     */
-                                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> {
-                                        throw new WebhookDeliveryException(
-                                                "External Service failed to process after max retries: "
-                                                        + c.endpoint,
-                                                HttpStatus.SERVICE_UNAVAILABLE);
-                                    }))
-                            .doOnError(ex -> sample.stop(meterRegistry.timer("webhooks_calls",
-                                    staticMetricsHeaders.and("status", "failure"))))
-                            .doOnSuccess(r -> sample.stop(meterRegistry.timer("webhooks_calls",
-                                    staticMetricsHeaders.and("status", "success"))));
+                                    : WebhookConfigurationProperties.REQUEST_TIMEOUT_DEFAULT))
+                            /*
+                             * .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)).jitter(0.75)
+                             * .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> { throw new
+                             * WebhookDeliveryException(
+                             * "External Service failed to process after max retries: " +
+                             * c.endpoint, HttpStatus.SERVICE_UNAVAILABLE); }))
+                             */
+                            .doOnEach(r -> recordWebhookCallMetric(sample, r, headers));
                 });
 
         return new FluxData(flux, matchedClients.size());
@@ -202,12 +230,36 @@ public class WebhookPublisher {
         }
     }
 
-    List<WebClientEndpointsConfig> findMatchingClients(Map<String, String> headers) {
-        // is it required to double check, since each provider can just provide a
-        // verified list?
-
-        return providers.stream().flatMap(provider -> provider.getClients(headers).stream())
-                .filter(client -> areMatchingHeaders(client.filters, headers))
+    /** 
+     * we skip config providers that fail but this should not occur as documented in 
+     * <code> {@link  WebhookClientsProvider#getClients(Map)}</<code>
+    */ 
+    List<WebClientEndpointsConfig> findMatchingClients(Map<String, String> headers) {        
+        Map<String, String> headersLocal = headers != null ? headers : Collections.emptyMap();
+        
+        // is it required to double check ( areMatchingHeaders(client.filters, headers))
+        // since each provider can just provide a verified list?
+        return providers.stream().flatMap(provider -> {
+            try {
+                WebConfigProviderResponse providerResponse = provider.getClients(headersLocal);
+                if(providerResponse == null) {
+                    //This is a safety check
+                    recordApiConfigLookupCallMetric(WebConfigProviderStatus.failure, headersLocal);
+                    return Stream.empty();
+                }
+                
+                recordApiConfigLookupCallMetric(providerResponse.getStatus(), headersLocal);
+                
+                if (WebConfigProviderStatus.success.equals(providerResponse.getStatus())) {
+                    return provider.getClients(headersLocal).getConfigList().stream();
+                }
+                return Stream.empty();                
+            } catch (Throwable e) {
+                //This is a safety check
+                recordApiConfigLookupCallMetric(WebConfigProviderStatus.failure, headersLocal);
+                return Stream.empty();
+            }
+        }).filter(client -> areMatchingHeaders(client.filters, headersLocal))
                 .collect(Collectors.toList());
     }
 
@@ -240,5 +292,13 @@ public class WebhookPublisher {
         public HttpStatus getStatus() {
             return status;
         }
+    }
+
+    static public enum MessageReceivedStatus {
+        no_matching_config, valid, missing_headers, null_payload
+    }
+
+    static public enum WebhookEndpointInvocationStatus {
+        success, failure
     }
 }

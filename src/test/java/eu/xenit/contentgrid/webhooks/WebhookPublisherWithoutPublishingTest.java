@@ -10,12 +10,15 @@ import org.junit.jupiter.api.Test;
 import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebClientEndpointsConfig;
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 public class WebhookPublisherWithoutPublishingTest {
 
     // TODO add test without required provided
     
     WebhookConfigurationProperties props = new WebhookConfigurationProperties();
+    MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @Test
     void when_singleClient_isConfiguredWithoutFilters_expect_ok() {
@@ -30,9 +33,9 @@ public class WebhookPublisherWithoutPublishingTest {
                 List.of(clientConfig));
         Assertions.assertEquals(1, inMemoryProvider.getClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
-                .size());
+                .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -72,9 +75,9 @@ public class WebhookPublisherWithoutPublishingTest {
                         inMemoryProvider
                                 .getClients(Map.of("test2", "test2", "test", "test", "application",
                                         "app1", "action", "act", "type", "type", "version", "v1"))
-                                .size());
+                                .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -111,9 +114,9 @@ public class WebhookPublisherWithoutPublishingTest {
                 List.of(clientConfig));
         Assertions.assertEquals(1, inMemoryProvider.getClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
-                .size());
+                .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -153,9 +156,9 @@ public class WebhookPublisherWithoutPublishingTest {
                         inMemoryProvider
                                 .getClients(Map.of("test2", "test2", "test", "test", "application",
                                         "app1", "action", "act", "type", "type", "version", "v1"))
-                                .size());
+                                .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), null);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of());
         Assertions.assertEquals(0, oneClientFound.size());
