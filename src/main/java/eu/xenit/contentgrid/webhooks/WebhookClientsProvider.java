@@ -23,7 +23,7 @@ import reactor.netty.http.client.HttpClient;
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
-        applicationId, deploymentId, type
+        application_id, deployment_id, trigger, entity
     }
 
     /**
@@ -159,13 +159,6 @@ public interface WebhookClientsProvider {
             return new WebConfigProviderResponse(clients.stream()
                     .filter(client -> WebhookPublisher.areMatchingHeaders(client.filters, headers))
                     .collect(Collectors.toList()));
-        }
-    }
-
-    public static class DatabaseWebhookClientsProvider implements WebhookClientsProvider {
-
-        public WebConfigProviderResponse getClients(Map<String, String> headers) {
-            return new WebConfigProviderResponse();
         }
     }
 

@@ -51,22 +51,22 @@ public class WebhookPublisherPublishingTest {
         WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
         clientConfig1EndpointConfig.setUri(URI.create("http://mockserver/hook1"));
         clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-        clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd", "action",
-                "act", "type", "type", "version", "v1"));
+        clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd", "action",
+                "act", "trigger", "type", "version", "v1", "entity", "case"));
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig1));
         Assertions.assertEquals(1,
                 inMemoryProvider
-                        .getClients(Map.of("applicationId", "app1", "deploymentId", "abcd",
-                                "action", "act", "type", "type", "version", "v1"))
+                        .getClients(Map.of("application_id", "app1", "deployment_id", "abcd",
+                                "action", "act", "trigger", "type", "version", "v1", "entity", "case"))
                         .getConfigList().size());
 
         WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                 meterRegistry);
         FluxData fluxData = publisher.fluxData(
-                Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
-                        "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
+                        "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
                 "payload_test", null, null);
 
         Assertions.assertEquals(1, fluxData.getSize());
@@ -82,22 +82,22 @@ public class WebhookPublisherPublishingTest {
             WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
             clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd",
-                    "action", "act", "type", "type", "version", "v1"));
+            clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
+                    "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
 
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                     List.of(clientConfig1));
             Assertions.assertEquals(1,
                     inMemoryProvider
-                            .getClients(Map.of("applicationId", "app1", "deploymentId", "abcd",
-                                    "action", "act", "type", "type", "version", "v1"))
+                            .getClients(Map.of("application_id", "app1", "deployment_id", "abcd",
+                                    "action", "act", "trigger", "type", "version", "v1", "entity", "case"))
                             .getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
-                            "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
+                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
                     "payload_test", WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME, null);
             Assertions.assertEquals(1, fluxData.getSize());
 
@@ -122,20 +122,20 @@ public class WebhookPublisherPublishingTest {
             clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
             clientConfig1EndpointConfig.setSecret("secretKey");
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-            clientConfig1.setFilter(Map.of("applicationId", "app1", "deploymentId", "abcd",
-                    "action", "act", "type", "type", "version", "v1"));
+            clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
+                    "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
 
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                     List.of(clientConfig1));
             Assertions.assertEquals(1,
-                    inMemoryProvider.getClients(Map.of("applicationId", "app1", "deploymentId",
-                            "abcd", "action", "act", "type", "type", "version", "v1")).getConfigList().size());
+                    inMemoryProvider.getClients(Map.of("application_id", "app1", "deployment_id",
+                            "abcd", "action", "act", "trigger", "type", "version", "v1", "entity", "case")).getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
                     meterRegistry);
             FluxData fluxData = publisher.fluxData(
-                    Map.of("applicationId", "app1", "deploymentId", "abcd", "action", "act", "type",
-                            "type", "version", "v1", "webhookConfigUrl", "http://test"),
+                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
+                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
                     "payload_test", WebhookConfigurationProperties.HEADER_NAME_DEFAULT, null);
             Assertions.assertEquals(1, fluxData.getSize());
 

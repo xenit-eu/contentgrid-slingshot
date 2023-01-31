@@ -6,7 +6,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class WebhookClientsProviderTest {
+public class ContentGridApiWebhookClientsProviderTest {
 
     @Test
     void when_webhookClientConfig_isEmptyAndHeadersAreEmpty_expect_ok() {

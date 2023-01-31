@@ -29,11 +29,6 @@ public class WebhooksApplication {
     }
 
     @Bean
-    WebhookClientsProvider dbWebhookClientsProvider() {
-        return new WebhookClientsProvider.DatabaseWebhookClientsProvider();
-    }
-
-    @Bean
     WebhookClientsProvider contentGridApiWebhookClientsProvider(
             WebhookConfigurationProperties props) {
         return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider(props);
