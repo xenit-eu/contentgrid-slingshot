@@ -103,7 +103,7 @@ public class WebhookPublisher {
     }
 
     private void recordWebhookCallMetric(Timer.Sample sample, Signal<ResponseEntity<Void>> responseSignal,
-            final Map<String, String> headers) {
+            Map<String, String> headers, String endpoint) {
         
         if(responseSignal.isOnComplete() || responseSignal.isOnSubscribe()) {
             // these signals should not be handled
@@ -124,6 +124,13 @@ public class WebhookPublisher {
         ResponseEntity<Void> responseEntity = responseSignal.get();        
         int httpStatusCode = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().value() : 0;
         String httpStatusSeries = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().series().name() : "-";
+        
+        
+        if (WebhookEndpointInvocationStatus.failure.equals(webhookInvocationStatus)) { 
+          LOG.warn("message could not be delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
+        } else {
+            LOG.debug("message delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
+        }
         
         // we are sure that all mandatory tags are present
         Tags mandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
@@ -156,6 +163,7 @@ public class WebhookPublisher {
 
         if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             // case were the message did not have all the mandatory headers
+            LOG.warn("message received does not contain all mandatory headers: {}", headers);
             recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers);
             return new FluxData(Flux.empty(), 0);
         }
@@ -163,6 +171,7 @@ public class WebhookPublisher {
         List<WebClientEndpointsConfig> matchedClients = findMatchingClients(headers);
         if (matchedClients.isEmpty()) {
             // case where all providers returned an empty list
+            LOG.warn("message received does not match any configuration for headers: {}", headers);
             recordMessageReceivedMetric(MessageReceivedStatus.no_matching_config, headers);
             return new FluxData(Flux.empty(), 0);
         }
@@ -170,7 +179,7 @@ public class WebhookPublisher {
         // case where we have a valid message
         recordMessageReceivedMetric(MessageReceivedStatus.valid, headers);
 
-        LOG.debug("clients matched: {} for headers: {}", matchedClients.size(), headers);
+        LOG.debug("{} client(s) configuration matched for headers: {}", matchedClients.size(), headers);
         Flux<ResponseEntity<Void>> flux = Flux
                 .fromStream(matchedClients.stream().flatMap(c -> c.getEndpoints().stream()))
                 .flatMap(c -> {
@@ -189,9 +198,11 @@ public class WebhookPublisher {
 
                     Timer.Sample sample = Timer.start(meterRegistry);
 
+                    String headerHashValue = hashValue.orElse("-none-");
+                    LOG.debug("sending message to : '{}' with hmac :  '{}' in header : '{}'", c.endpoint, headerHashValue, headerName);
+                    
                     return c.webClient.post().contentType(contentType == null ? MediaType.TEXT_PLAIN
                             : MediaType.valueOf(contentType)).headers(h -> {
-                                String headerHashValue = hashValue.orElse("-none-");
                                 h.add(headerName != null ? headerName
                                         : WebhookConfigurationProperties.HEADER_NAME_DEFAULT,
                                         headerHashValue);
@@ -206,7 +217,7 @@ public class WebhookPublisher {
                              * "External Service failed to process after max retries: " +
                              * c.endpoint, HttpStatus.SERVICE_UNAVAILABLE); }))
                              */
-                            .doOnEach(r -> recordWebhookCallMetric(sample, r, headers));
+                            .doOnEach(r -> recordWebhookCallMetric(sample, r, headers, c.endpoint));
                 });
 
         return new FluxData(flux, matchedClients.size());
