@@ -250,7 +250,7 @@ public class WebhookPublisher {
                 
                 recordApiConfigLookupCallMetric(providerResponse.getStatus(), headersLocal);
                 
-                if (WebConfigProviderStatus.success.equals(providerResponse.getStatus())) {
+                if (providerResponse.isProviderStatusOk()) {
                     return provider.getClients(headersLocal).getConfigList().stream();
                 }
                 return Stream.empty();                

@@ -90,6 +90,11 @@ public interface WebhookClientsProvider {
         public WebConfigProviderStatus getStatus() {
             return status;
         }
+        
+        public boolean isProviderStatusOk() {
+            return WebConfigProviderStatus.success.equals(this.status) || 
+                    WebConfigProviderStatus.cached.equals(this.status);
+        }
     }
     
     static class WebClientEndpointsConfig {
