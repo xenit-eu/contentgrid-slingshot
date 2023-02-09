@@ -67,7 +67,7 @@ public class WebhookPublisherPublishingTest {
         FluxData fluxData = publisher.fluxData(
                 Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                         "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                "payload_test", null, null);
+                "payload_test", null);
 
         Assertions.assertEquals(1, fluxData.getSize());
     }
@@ -98,7 +98,7 @@ public class WebhookPublisherPublishingTest {
             FluxData fluxData = publisher.fluxData(
                     Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                             "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                    "payload_test", WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME, null);
+                    "payload_test", null);
             Assertions.assertEquals(1, fluxData.getSize());
 
             StepVerifier.create(fluxData.getFlux())
@@ -107,7 +107,7 @@ public class WebhookPublisherPublishingTest {
 
             RecordedRequest recordedRequest = mockBackEnd.takeRequest();
             Assertions.assertEquals("-none-", recordedRequest
-                    .getHeader(WebhookMessageConsumerConfiguration.WEBHOOKS_HEADERNAME));
+                    .getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
         }
     }
 
@@ -136,7 +136,7 @@ public class WebhookPublisherPublishingTest {
             FluxData fluxData = publisher.fluxData(
                     Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                             "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                    "payload_test", WebhookConfigurationProperties.HEADER_NAME_DEFAULT, null);
+                    "payload_test", null);
             Assertions.assertEquals(1, fluxData.getSize());
 
             StepVerifier.create(fluxData.getFlux())
@@ -148,7 +148,7 @@ public class WebhookPublisherPublishingTest {
             byte[] bytes = clientConfig1EndpointConfig.getSecret().getBytes(StandardCharsets.UTF_8);
             String hash = WebhookPublisher.hmac(bytes, "payload_test");
             Assertions.assertEquals(hash,
-                    recordedRequest.getHeader(WebhookConfigurationProperties.HEADER_NAME_DEFAULT));
+                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
         }
     }
 }

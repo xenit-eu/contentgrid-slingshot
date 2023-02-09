@@ -26,7 +26,6 @@ public class WebhookConfigurationSingleClientConfigurationTest {
     @Test
     void when_singleClient_isConfigured_expect_configurationOk() {
         Assertions.assertEquals("content-grid.events2", webhookProperties.getQueue());
-        Assertions.assertEquals("content-grid.hash2", webhookProperties.getHeaderName());
         Assertions.assertEquals(10, webhookProperties.getRequestTimeout());
 
         List<WebhookClientConfig> clients = webhookProperties.getClient();

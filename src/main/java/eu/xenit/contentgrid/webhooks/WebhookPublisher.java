@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -43,6 +44,12 @@ public class WebhookPublisher {
 
     private static List<Tag> EMPTY_MANDATORY_TAGS = Stream.of(MANDATORY_HEADERS.values())
             .map(e -> Tag.of(e.name(), "")).collect(Collectors.toList());
+    
+    public static final String USER_AGENT_HEADER_VALUE = "ContentGrid-Slingshot";
+    public static final String CONTENTGRID_APPLICATION_ID_HEADER_NAME = "ContentGrid-Appication-Id";
+    public static final String CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME = "ContentGrid-Deployment-Id";
+    public static final String CONTENTGRID_HMAC_HASH_HEADER_NAME = "ContentGrid-Hash";
+
 
     private final List<WebhookClientsProvider> providers;
     private final MeterRegistry meterRegistry;
@@ -59,7 +66,7 @@ public class WebhookPublisher {
 
     @ServiceActivator(inputChannel = WebhookMessageConsumerConfiguration.CHANNEL_NAME)
     public void handleEvent(Message<String> message) {
-        LOG.debug("message received: {}", message);
+        LOG.trace("message received: {}", message);
 
         MessageHeaders messageHeaders = message.getHeaders();
 
@@ -68,18 +75,16 @@ public class WebhookPublisher {
 
         String payload = message.getPayload();
         if (payload != null) {
-            publishAndSubscribe(headersAsStringValues, payload, props.getHeaderName(),
-                    props.getRequestTimeout());
+            publishAndSubscribe(headersAsStringValues, payload, props.getRequestTimeout());
         } else {
             LOG.warn("message received: {} with null payload", message);
             recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headersAsStringValues);
         }
     }
 
-    void publishAndSubscribe(final Map<String, String> headers, final String payload,
-            final String headerName, final Long requestTimeoutInseconds) {
+    void publishAndSubscribe(final Map<String, String> headers, final String payload, final Long requestTimeoutInseconds) {
 
-        FluxData fluxData = fluxData(headers, payload, headerName, requestTimeoutInseconds);
+        FluxData fluxData = fluxData(headers, payload, requestTimeoutInseconds);
         int size = fluxData.size;
 
         if (size > 0) {
@@ -158,8 +163,7 @@ public class WebhookPublisher {
         counter.increment();
     }
 
-    FluxData fluxData(final Map<String, String> headers, final String payload,
-            final String headerName, final Long requestTimeoutInseconds) {
+    FluxData fluxData(final Map<String, String> headers, final String payload, final Long requestTimeoutInseconds) {
 
         if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             // case were the message did not have all the mandatory headers
@@ -171,7 +175,7 @@ public class WebhookPublisher {
         List<WebClientEndpointsConfig> matchedClients = findMatchingClients(headers);
         if (matchedClients.isEmpty()) {
             // case where all providers returned an empty list
-            LOG.warn("message received does not match any configuration for headers: {}", headers);
+            LOG.debug("message received does not match any configuration for headers: {}", headers);
             recordMessageReceivedMetric(MessageReceivedStatus.no_matching_config, headers);
             return new FluxData(Flux.empty(), 0);
         }
@@ -199,13 +203,19 @@ public class WebhookPublisher {
                     Timer.Sample sample = Timer.start(meterRegistry);
 
                     String headerHashValue = hashValue.orElse("-none-");
-                    LOG.debug("sending message to : '{}' with hmac :  '{}' in header : '{}'", c.endpoint, headerHashValue, headerName);
+                    LOG.debug("sending message to : '{}' with hmac :  '{}' in header : '{}'", c.endpoint, headerHashValue, CONTENTGRID_HMAC_HASH_HEADER_NAME);
                     
-                    return c.webClient.post().contentType(contentType == null ? MediaType.TEXT_PLAIN
-                            : MediaType.valueOf(contentType)).headers(h -> {
-                                h.add(headerName != null ? headerName
-                                        : WebhookConfigurationProperties.HEADER_NAME_DEFAULT,
-                                        headerHashValue);
+                    // TODO - rename useragent header to be ContenGrid something...
+                    //      - content type check
+                    
+                    return c.webClient.post()
+                            //.contentType(contentType == null ? MediaType.APPLICATION_JSON : MediaType.valueOf(contentType))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .headers(h -> {
+                                h.set(CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, headers.get(MANDATORY_HEADERS.deployment_id.name()));
+                                h.set(CONTENTGRID_APPLICATION_ID_HEADER_NAME, headers.get(MANDATORY_HEADERS.application_id.name()));
+                                h.set(HttpHeaders.USER_AGENT, USER_AGENT_HEADER_VALUE);                                
+                                h.set(CONTENTGRID_HMAC_HASH_HEADER_NAME, headerHashValue);
                             }).body(BodyInserters.fromValue(payload)).retrieve().toBodilessEntity()
                             .timeout(Duration.ofSeconds(requestTimeoutInseconds != null
                                     ? requestTimeoutInseconds

@@ -24,8 +24,7 @@ public class WebhookConfigurationThreeClientsConfigurationTest {
     WebhookConfigurationProperties webhookProperties;
     @Test
     void when_singleClient_isConfigured_expect_ok() {
-        Assertions.assertEquals("content-grid2.events", webhookProperties.getQueue());
-        Assertions.assertEquals("content-grid2.hash", webhookProperties.getHeaderName());
+        Assertions.assertEquals("content-grid2.events", webhookProperties.getQueue());        
         Assertions.assertEquals(20, webhookProperties.getRequestTimeout());
         
         List<WebhookClientConfig> clients = webhookProperties.getClient();

@@ -8,10 +8,11 @@ server:
     
 management.endpoints.web.exposure.include: '*'    
 
+logging.level.eu.xenit.contentgrid.webhooks.WebhookPublisher: TRACE 
+
 #contentgrid:
 #  webhooks:
 #    #queue: content-grid.events
-#    #headerName: content-grid.hash
 #    #requestTimeout: 30 
 #    client:            
 #    - filter:

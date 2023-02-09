@@ -1,7 +1,6 @@
 contentgrid:
   webhooks:
     queue: content-grid2.events
-    headerName: content-grid2.hash
     requestTimeout: 20 
     client:            
        - filter:

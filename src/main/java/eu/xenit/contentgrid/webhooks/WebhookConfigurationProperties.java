@@ -16,10 +16,8 @@ import org.springframework.util.Assert;
 public class WebhookConfigurationProperties {
 
     public static final Long REQUEST_TIMEOUT_DEFAULT = 5L;
-    public static final String HEADER_NAME_DEFAULT = "contentgrid.hash";
 
     private String queue = "contentgrid.events"; // queue is not refreshable
-    private String headerName = HEADER_NAME_DEFAULT;
     private Long requestTimeout = REQUEST_TIMEOUT_DEFAULT;
     private List<WebhookClientConfig> client;
 
@@ -38,15 +36,6 @@ public class WebhookConfigurationProperties {
     public void setQueue(String queue) {
         Assert.hasText(queue, "queue cannot be empty or null");
         this.queue = queue;
-    }
-
-    public String getHeaderName() {
-        return headerName;
-    }
-
-    public void setHeaderName(String headerName) {
-        Assert.hasText(headerName, "headerName cannot be empty or null");
-        this.headerName = headerName;
     }
 
     public Long getRequestTimeout() {
