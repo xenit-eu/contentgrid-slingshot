@@ -46,22 +46,30 @@ public class WebhookPublisher {
             .map(e -> Tag.of(e.name(), "")).collect(Collectors.toList());
     
     public static final String USER_AGENT_HEADER_VALUE = "ContentGrid-Slingshot";
-    public static final String CONTENTGRID_APPLICATION_ID_HEADER_NAME = "ContentGrid-Appication-Id";
+    public static final String CONTENTGRID_APPLICATION_ID_HEADER_NAME = "ContentGrid-Application-Id";
     public static final String CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME = "ContentGrid-Deployment-Id";
-    public static final String CONTENTGRID_HMAC_HASH_HEADER_NAME = "ContentGrid-Hash";
+    public static final String CONTENTGRID_HMAC_HASH_HEADER_NAME = "ContentGrid-Signature";
 
 
     private final List<WebhookClientsProvider> providers;
     private final MeterRegistry meterRegistry;
     private final WebhookConfigurationProperties props;
 
+    private final String userAgentHeaderValueWithVersion;
+
     public WebhookPublisher(WebhookConfigurationProperties props,
-            List<WebhookClientsProvider> providers, MeterRegistry meterRegistry) {
+            List<WebhookClientsProvider> providers, MeterRegistry meterRegistry, BuildProperties buildInfo) {
         Assert.notNull(providers, "provider cannot be null");
 
         this.providers = providers;
         this.meterRegistry = meterRegistry;
         this.props = props;
+
+        userAgentHeaderValueWithVersion = String.format("%s/%s",  USER_AGENT_HEADER_VALUE, buildInfo.getVersion());
+    }
+
+    public String getUserAgentHeaderValueWithVersion() {
+         return userAgentHeaderValueWithVersion;
     }
 
     @ServiceActivator(inputChannel = WebhookMessageConsumerConfiguration.CHANNEL_NAME)
@@ -204,17 +212,14 @@ public class WebhookPublisher {
 
                     String headerHashValue = hashValue.orElse("-none-");
                     LOG.debug("sending message to : '{}' with hmac :  '{}' in header : '{}'", c.endpoint, headerHashValue, CONTENTGRID_HMAC_HASH_HEADER_NAME);
-                    
-                    // TODO - rename useragent header to be ContenGrid something...
-                    //      - content type check
-                    
+
                     return c.webClient.post()
                             //.contentType(contentType == null ? MediaType.APPLICATION_JSON : MediaType.valueOf(contentType))
                             .contentType(MediaType.APPLICATION_JSON)
                             .headers(h -> {
                                 h.set(CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, headers.get(MANDATORY_HEADERS.deployment_id.name()));
                                 h.set(CONTENTGRID_APPLICATION_ID_HEADER_NAME, headers.get(MANDATORY_HEADERS.application_id.name()));
-                                h.set(HttpHeaders.USER_AGENT, USER_AGENT_HEADER_VALUE);                                
+                                h.set(HttpHeaders.USER_AGENT, getUserAgentHeaderValueWithVersion());
                                 h.set(CONTENTGRID_HMAC_HASH_HEADER_NAME, headerHashValue);
                             }).body(BodyInserters.fromValue(payload)).retrieve().toBodilessEntity()
                             .timeout(Duration.ofSeconds(requestTimeoutInseconds != null
@@ -233,7 +238,8 @@ public class WebhookPublisher {
         return new FluxData(flux, matchedClients.size());
     }
 
-    class FluxData {
+    class
+    FluxData {
         private final Flux<ResponseEntity<Void>> flux;
         private final int size;
 

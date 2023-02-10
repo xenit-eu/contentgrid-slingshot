@@ -49,6 +49,10 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+springBoot {
+	buildInfo ()
+}
+
 bootBuildImage {
     def dockerImageRepo = "docker.xenit.eu/open-source/contentgrid/${project.name}"
     imageName = "${dockerImageRepo}:${project.version}"

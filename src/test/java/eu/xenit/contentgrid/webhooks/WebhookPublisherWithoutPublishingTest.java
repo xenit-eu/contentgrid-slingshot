@@ -3,6 +3,7 @@ package eu.xenit.contentgrid.webhooks;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClien
 import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.boot.info.BuildProperties;
 
 public class WebhookPublisherWithoutPublishingTest {
 
@@ -19,6 +21,13 @@ public class WebhookPublisherWithoutPublishingTest {
     
     WebhookConfigurationProperties props = new WebhookConfigurationProperties();
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    BuildProperties buildProperties = new BuildProperties(new Properties()) {
+        @Override
+        public String getVersion() {
+            return "1.0.0";
+        }
+    };
 
     @Test
     void when_singleClient_isConfiguredWithoutFilters_expect_ok() {
@@ -35,7 +44,7 @@ public class WebhookPublisherWithoutPublishingTest {
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
                 .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -77,7 +86,7 @@ public class WebhookPublisherWithoutPublishingTest {
                                         "app1", "action", "act", "type", "type", "version", "v1"))
                                 .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -116,7 +125,7 @@ public class WebhookPublisherWithoutPublishingTest {
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
                 .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -158,7 +167,7 @@ public class WebhookPublisherWithoutPublishingTest {
                                         "app1", "action", "act", "type", "type", "version", "v1"))
                                 .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry);
+        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of());
         Assertions.assertEquals(0, oneClientFound.size());

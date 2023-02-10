@@ -38,9 +38,9 @@ public class WebhooksApplication {
     @Bean
     WebhookPublisher webhookPublisher(WebhookConfigurationProperties props,
             ObjectProvider<WebhookClientsProvider> webhookClientsProviders,
-            @Nullable MeterRegistry meterRegistry) {
+            @Nullable MeterRegistry meterRegistry, BuildProperties buildInfo) {
         return new WebhookPublisher(props,
                 webhookClientsProviders.orderedStream().collect(Collectors.toList()),
-                meterRegistry);
+                meterRegistry, buildInfo);
     }
 }

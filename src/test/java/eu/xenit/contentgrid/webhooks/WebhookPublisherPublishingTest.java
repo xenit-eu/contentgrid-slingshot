@@ -6,11 +6,14 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -24,12 +27,17 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import reactor.test.StepVerifier;
 
-@ExtendWith(SpringExtension.class)
-@WebMvcTest(TestController.class)
-public class WebhookPublisherPublishingTest {
+public final class WebhookPublisherPublishingTest {
 
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
     WebhookConfigurationProperties props = new WebhookConfigurationProperties();
+
+    BuildProperties buildProperties = new BuildProperties(new Properties()) {
+        @Override
+        public String getVersion() {
+            return "1.0.0";
+        }
+    };
 
 //    @Test
 //    void when_publisherHandlesMessage_expect_reactiveSubscribeOk() {
@@ -63,7 +71,7 @@ public class WebhookPublisherPublishingTest {
                         .getConfigList().size());
 
         WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                meterRegistry);
+                meterRegistry, buildProperties);
         FluxData fluxData = publisher.fluxData(
                 Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                         "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
@@ -94,7 +102,7 @@ public class WebhookPublisherPublishingTest {
                             .getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                    meterRegistry);
+                    meterRegistry, buildProperties);
             FluxData fluxData = publisher.fluxData(
                     Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                             "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
@@ -132,7 +140,7 @@ public class WebhookPublisherPublishingTest {
                             "abcd", "action", "act", "trigger", "type", "version", "v1", "entity", "case")).getConfigList().size());
 
             WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                    meterRegistry);
+                    meterRegistry, buildProperties);
             FluxData fluxData = publisher.fluxData(
                     Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
                             "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
@@ -151,4 +159,55 @@ public class WebhookPublisherPublishingTest {
                     recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
         }
     }
+
+    @Test
+    void when_endpointIsAvailableWithAllHeaders_expect_ok()
+            throws IOException, InterruptedException, URISyntaxException {
+        try (MockWebServer mockBackEnd = new MockWebServer()) {
+            mockBackEnd.enqueue(new MockResponse().setResponseCode(200));
+
+            WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
+            WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
+            clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
+            clientConfig1EndpointConfig.setSecret("secretKey");
+            clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
+            clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
+                    "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
+
+            WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
+                    List.of(clientConfig1));
+            Assertions.assertEquals(1,
+                    inMemoryProvider.getClients(Map.of("application_id", "app1", "deployment_id",
+                            "abcd", "action", "act", "trigger", "type", "version", "v1", "entity", "case")).getConfigList().size());
+
+            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
+                    meterRegistry, buildProperties);
+            FluxData fluxData = publisher.fluxData(
+                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
+                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
+                    "payload_test", null);
+            Assertions.assertEquals(1, fluxData.getSize());
+
+            StepVerifier.create(fluxData.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
+
+            RecordedRequest recordedRequest = mockBackEnd.takeRequest();
+
+            byte[] bytes = clientConfig1EndpointConfig.getSecret().getBytes(StandardCharsets.UTF_8);
+            String hash = WebhookPublisher.hmac(bytes, "payload_test");
+            Assertions.assertEquals(hash,
+                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
+
+            Assertions.assertEquals("app1",
+                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME));
+
+            Assertions.assertEquals("abcd",
+                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME));
+
+            Assertions.assertEquals(WebhookPublisher.USER_AGENT_HEADER_VALUE + "/" +buildProperties.getVersion(),
+                    recordedRequest.getHeader(HttpHeaders.USER_AGENT));
+        }
+    }
+
 }
