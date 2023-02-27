@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.net.URI;
 import java.util.Collections;

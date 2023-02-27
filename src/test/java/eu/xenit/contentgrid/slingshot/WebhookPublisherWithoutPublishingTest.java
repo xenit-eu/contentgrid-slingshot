@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.net.URI;
 import java.util.List;
@@ -8,12 +8,16 @@ import java.util.Properties;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebClientEndpointsConfig;
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.boot.info.BuildProperties;
+
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
+import eu.xenit.contentgrid.slingshot.WebhookPublisher;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 
 public class WebhookPublisherWithoutPublishingTest {
 

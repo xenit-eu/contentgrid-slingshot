@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -14,8 +14,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import reactor.netty.http.client.HttpClient;
 
 

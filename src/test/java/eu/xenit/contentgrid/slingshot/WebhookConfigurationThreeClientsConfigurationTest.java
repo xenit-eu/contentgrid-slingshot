@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.net.URI;
 import java.util.List;
@@ -12,8 +12,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 
 @ExtendWith(SpringExtension.class)
 @EnableConfigurationProperties(WebhookConfigurationProperties.class)

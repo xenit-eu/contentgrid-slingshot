@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,9 +17,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig;
-import eu.xenit.contentgrid.webhooks.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
-import eu.xenit.contentgrid.webhooks.WebhookPublisher.FluxData;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
+import eu.xenit.contentgrid.slingshot.WebhookPublisher;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import eu.xenit.contentgrid.slingshot.WebhookPublisher.FluxData;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import okhttp3.mockwebserver.MockResponse;
