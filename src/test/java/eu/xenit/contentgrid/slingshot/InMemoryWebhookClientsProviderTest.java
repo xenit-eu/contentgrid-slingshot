@@ -1,10 +1,13 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
 
 public class InMemoryWebhookClientsProviderTest {
 

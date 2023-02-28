@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.util.stream.Collectors;
 
@@ -15,10 +15,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 
 @SpringBootApplication
 @EnableConfigurationProperties(WebhookConfigurationProperties.class)
-public class WebhooksApplication {
+public class SlingshotApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(WebhooksApplication.class, args);
+        SpringApplication.run(SlingshotApplication.class, args);
     }
 
     @Bean

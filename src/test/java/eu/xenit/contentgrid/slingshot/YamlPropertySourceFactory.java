@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.io.IOException;
 import java.util.Properties;

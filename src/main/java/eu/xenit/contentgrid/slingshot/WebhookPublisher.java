@@ -1,4 +1,4 @@
-package eu.xenit.contentgrid.webhooks;
+package eu.xenit.contentgrid.slingshot;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -25,10 +25,10 @@ import org.springframework.web.reactive.function.BodyInserters;
 
 import com.google.common.hash.Hashing;
 
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.MANDATORY_HEADERS;
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebClientEndpointsConfig;
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse;
-import eu.xenit.contentgrid.webhooks.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.MANDATORY_HEADERS;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
