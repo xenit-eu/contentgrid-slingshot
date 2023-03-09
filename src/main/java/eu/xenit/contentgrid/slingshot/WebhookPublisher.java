@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatus.Series;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -136,7 +137,9 @@ public class WebhookPublisher {
         
         ResponseEntity<Void> responseEntity = responseSignal.get();        
         int httpStatusCode = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().value() : 0;
-        String httpStatusSeries = responseEntity != null && responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().series().name() : "-";
+        
+        Series series = Series.resolve(httpStatusCode);
+        String httpStatusSeries = series != null ? series.name() : "-";
         
         
         if (WebhookEndpointInvocationStatus.failure.equals(webhookInvocationStatus)) { 
