@@ -8,4 +8,3 @@ contentgrid:
            application: name1
          endpoints:
          - uri: http://localhost:9999/hooksite1
-           secret: abcd  

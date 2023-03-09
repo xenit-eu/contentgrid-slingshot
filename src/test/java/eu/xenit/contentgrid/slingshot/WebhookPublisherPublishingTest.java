@@ -1,39 +1,71 @@
 package eu.xenit.contentgrid.slingshot;
 
-import java.io.IOException;
+import static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder.okForEmptyJson;
+import static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder.okForJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
-import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
-import eu.xenit.contentgrid.slingshot.WebhookPublisher;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.matching.AnythingPattern;
+import com.github.tomakehurst.wiremock.matching.EqualToPattern;
+import com.nimbusds.jose.crypto.RSASSASigner;
+
+import eu.xenit.contentgrid.slingshot.ContentGridApiWebhookClientsProviderTest.ApiLookupTest;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
-import eu.xenit.contentgrid.slingshot.WebhookPublisher.FluxData;
+import eu.xenit.contentgrid.slingshot.WebhookPublisher.PublishingFlux;
+import eu.xenit.contentgrid.slingshot.service.JwtService;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import reactor.test.StepVerifier;
 
 public final class WebhookPublisherPublishingTest {
 
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
-    WebhookConfigurationProperties props = new WebhookConfigurationProperties();
+    
+
+    Supplier<PrivateKey> privateKey = () -> {
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            KeyPair kp = kpg.generateKeyPair();
+            return kp.getPrivate();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    RSASSASigner signer = new RSASSASigner(privateKey.get());
+    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"));
 
     BuildProperties buildProperties = new BuildProperties(new Properties()) {
         @Override
@@ -41,20 +73,11 @@ public final class WebhookPublisherPublishingTest {
             return "1.0.0";
         }
     };
-
-//    @Test
-//    void when_publisherHandlesMessage_expect_reactiveSubscribeOk() {
-//        WebhookClientConfig clientConfig = new WebhookConfigurationProperties.WebhookClientConfig();
-//        clientConfig.setEndpoint(URI.create("http://mockserver/hook1"));
-//        clientConfig.setFilter(Map.of());
-//
-//        WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
-//                List.of(clientConfig));
-//        Assertions.assertEquals(1, inMemoryProvider.getClients().size());
-//
-//        WebhookPublisher publisher = new WebhookPublisher(List.of(inMemoryProvider));
-//        publisher.handleEvent(new GenericMessage<String>("payload_test", Map.of()));
-//    }
+    
+    @BeforeEach
+    public void clear() {
+        meterRegistry.clear();
+    }
 
     @Test
     void when_endpointIsNotReachable_expect_ok() {
@@ -67,150 +90,181 @@ public final class WebhookPublisherPublishingTest {
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig1));
-        Assertions.assertEquals(1,
-                inMemoryProvider
-                        .getClients(Map.of("application_id", "app1", "deployment_id", "abcd",
-                                "action", "act", "trigger", "type", "version", "v1", "entity", "case"))
-                        .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                meterRegistry, buildProperties);
-        FluxData fluxData = publisher.fluxData(
-                Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
-                        "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                "payload_test", null);
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                meterRegistry, buildProperties.getVersion());
+        PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                "http://test", "entity", "case"), "payload_test");
 
         Assertions.assertEquals(1, fluxData.getSize());
+        
+        StepVerifier.create(fluxData.getFlux()).verifyError();
     }
 
-    @Test
-    void when_endpointIsAvailableWithoutHMAC_expect_ok()
-            throws IOException, InterruptedException, URISyntaxException {
-        try (MockWebServer mockBackEnd = new MockWebServer()) {
-            mockBackEnd.enqueue(new MockResponse().setResponseCode(200));
+    @Nested
+    @ExtendWith(SpringExtension.class)
+    @AutoConfigureWireMock(port = 0)
+    public class CustomerEndpointMockWithInMemoryconfigProviderTest {
 
+        @Autowired
+        WireMockServer wireMock;
+
+        @Test
+        void when_webhookEndpointIsAvailable_expect_okAndAllCGHeaders() {
+            
+            String baseUrl = wireMock.baseUrl();
+            
             WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
             WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
-            clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
+            clientConfig1EndpointConfig.setUri(URI.create(baseUrl + "/endpoint"));
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
             clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
                     "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
-
+            
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                     List.of(clientConfig1));
-            Assertions.assertEquals(1,
-                    inMemoryProvider
-                            .getClients(Map.of("application_id", "app1", "deployment_id", "abcd",
-                                    "action", "act", "trigger", "type", "version", "v1", "entity", "case"))
-                            .getConfigList().size());
-
-            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                    meterRegistry, buildProperties);
-            FluxData fluxData = publisher.fluxData(
-                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
-                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                    "payload_test", null);
+            
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                    meterRegistry, buildProperties.getVersion());
+            PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    "http://test", "entity", "case"), "payload_test");
             Assertions.assertEquals(1, fluxData.getSize());
+            
+            stubFor(post(urlEqualTo("/endpoint"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME, new EqualToPattern("app1")) 
+                    .withHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, new EqualToPattern("abcd"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
+                    .withHeader(HttpHeaders.USER_AGENT, new EqualToPattern(publisher.getUserAgentHeaderValueWithVersion()))
+                    .withHeader(HttpHeaders.CONTENT_TYPE, new EqualToPattern(MediaType.APPLICATION_JSON_VALUE))
+                    .withRequestBody(new AnythingPattern())
+                    .willReturn(okForEmptyJson()));
 
+            // verify that we received back HttpStatus 200
             StepVerifier.create(fluxData.getFlux())
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .verifyComplete();
-
-            RecordedRequest recordedRequest = mockBackEnd.takeRequest();
-            Assertions.assertEquals("-none-", recordedRequest
-                    .getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
         }
-    }
-
-    @Test
-    void when_endpointIsAvailableWithHMAC_expect_ok()
-            throws IOException, InterruptedException, URISyntaxException {
-        try (MockWebServer mockBackEnd = new MockWebServer()) {
-            mockBackEnd.enqueue(new MockResponse().setResponseCode(200));
-
+        
+        @Test
+        void when_webhookEndpointsAreAvailable_expect_okAndAllCGHeaders() {
+            
+            String baseUrl = wireMock.baseUrl();
+            
             WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
             WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
-            clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
-            clientConfig1EndpointConfig.setSecret("secretKey");
+            clientConfig1EndpointConfig.setUri(URI.create(baseUrl + "/endpoint"));
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
             clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
                     "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
-
-            WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
-                    List.of(clientConfig1));
-            Assertions.assertEquals(1,
-                    inMemoryProvider.getClients(Map.of("application_id", "app1", "deployment_id",
-                            "abcd", "action", "act", "trigger", "type", "version", "v1", "entity", "case")).getConfigList().size());
-
-            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                    meterRegistry, buildProperties);
-            FluxData fluxData = publisher.fluxData(
-                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
-                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                    "payload_test", null);
-            Assertions.assertEquals(1, fluxData.getSize());
-
-            StepVerifier.create(fluxData.getFlux())
-                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
-                    .verifyComplete();
-
-            RecordedRequest recordedRequest = mockBackEnd.takeRequest();
-
-            byte[] bytes = clientConfig1EndpointConfig.getSecret().getBytes(StandardCharsets.UTF_8);
-            String hash = WebhookPublisher.hmac(bytes, "payload_test");
-            Assertions.assertEquals(hash,
-                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
-        }
-    }
-
-    @Test
-    void when_endpointIsAvailableWithAllHeaders_expect_ok()
-            throws IOException, InterruptedException, URISyntaxException {
-        try (MockWebServer mockBackEnd = new MockWebServer()) {
-            mockBackEnd.enqueue(new MockResponse().setResponseCode(200));
-
-            WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
-            WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
-            clientConfig1EndpointConfig.setUri(mockBackEnd.url("/").url().toURI());
-            clientConfig1EndpointConfig.setSecret("secretKey");
-            clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
-            clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
+            
+            WebhookClientConfig clientConfig2 = new WebhookConfigurationProperties.WebhookClientConfig();
+            WebhookClientEndpointConfig clientConfig1EndpointConfig2 = new WebhookClientEndpointConfig();
+            clientConfig1EndpointConfig2.setUri(URI.create(baseUrl + "/endpoint"));
+            clientConfig2.setEndpoints(List.of(clientConfig1EndpointConfig2));
+            clientConfig2.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",
                     "action", "act", "trigger", "type", "version", "v1", "entity", "case"));
-
+            
             WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
-                    List.of(clientConfig1));
-            Assertions.assertEquals(1,
-                    inMemoryProvider.getClients(Map.of("application_id", "app1", "deployment_id",
-                            "abcd", "action", "act", "trigger", "type", "version", "v1", "entity", "case")).getConfigList().size());
+                    List.of(clientConfig1, clientConfig2));
+            
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                    meterRegistry, buildProperties.getVersion());
+            PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    baseUrl + "/endpoint", "entity", "case"), "payload_test");
+            Assertions.assertEquals(2, fluxData.getSize());
+            
+            stubFor(post(urlEqualTo("/endpoint"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME, new EqualToPattern("app1")) 
+                    .withHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, new EqualToPattern("abcd"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
+                    .withHeader(HttpHeaders.USER_AGENT, new EqualToPattern(publisher.getUserAgentHeaderValueWithVersion()))
+                    .withHeader(HttpHeaders.CONTENT_TYPE, new EqualToPattern(MediaType.APPLICATION_JSON_VALUE))
+                    .withRequestBody(new AnythingPattern())
+                    .willReturn(okForEmptyJson()));
 
-            WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider),
-                    meterRegistry, buildProperties);
-            FluxData fluxData = publisher.fluxData(
-                    Map.of("application_id", "app1", "deployment_id", "abcd", "action", "act", "trigger",
-                            "type", "version", "v1", "webhookConfigUrl", "http://test", "entity", "case"),
-                    "payload_test", null);
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
+        }
+    }
+    
+    @Nested
+    @ExtendWith(SpringExtension.class)
+    @AutoConfigureWireMock(port = 0)
+    public class CustomerEndpointMockWithApiConfigProviderTest {
+
+        @Autowired
+        WireMockServer wireMock;
+        
+        @BeforeEach
+        public void clear() {
+            meterRegistry.clear();
+        }
+
+        @Test
+        void when_webhookEndpointIsAvailable_expect_okAndAllCGHeaders() {
+            
+            String baseUrl = wireMock.baseUrl();
+            
+            stubFor(get(urlEqualTo("/actuator/webhooks")).willReturn(okForJson(ApiLookupTest.prepareResponse(baseUrl))));
+            
+            ContentGridApiWebhookClientsProvider provider = new WebhookClientsProvider.ContentGridApiWebhookClientsProvider();
+            
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider),
+                    meterRegistry, buildProperties.getVersion());
+            PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    baseUrl+"/actuator/webhooks", "entity", "case"), "payload_test");
             Assertions.assertEquals(1, fluxData.getSize());
+            
+            stubFor(post(urlEqualTo("/endpoint"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME, new EqualToPattern("app1")) 
+                    .withHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, new EqualToPattern("abcd"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
+                    .withHeader(HttpHeaders.USER_AGENT, new EqualToPattern(publisher.getUserAgentHeaderValueWithVersion()))
+                    .withHeader(HttpHeaders.CONTENT_TYPE, new EqualToPattern(MediaType.APPLICATION_JSON_VALUE))
+                    .withRequestBody(new AnythingPattern())
+                    .willReturn(okForEmptyJson()));
 
+            // verify that we received back HttpStatus 200
             StepVerifier.create(fluxData.getFlux())
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .verifyComplete();
-
-            RecordedRequest recordedRequest = mockBackEnd.takeRequest();
-
-            byte[] bytes = clientConfig1EndpointConfig.getSecret().getBytes(StandardCharsets.UTF_8);
-            String hash = WebhookPublisher.hmac(bytes, "payload_test");
-            Assertions.assertEquals(hash,
-                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_HMAC_HASH_HEADER_NAME));
-
-            Assertions.assertEquals("app1",
-                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME));
-
-            Assertions.assertEquals("abcd",
-                    recordedRequest.getHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME));
-
-            Assertions.assertEquals(WebhookPublisher.USER_AGENT_HEADER_VALUE + "/" +buildProperties.getVersion(),
-                    recordedRequest.getHeader(HttpHeaders.USER_AGENT));
+            
+            PublishingFlux fluxData2 = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    baseUrl+"/actuator/webhooks", "entity", "case"), "payload_test");
+            Assertions.assertEquals(1, fluxData2.getSize());
+            
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData2.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
+            
+            PublishingFlux fluxData3 = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    baseUrl+"/actuator/webhooks", "entity", "case"), "payload_test");
+            Assertions.assertEquals(1, fluxData3.getSize());
+            
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData3.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
+            
+            PublishingFlux fluxData4 = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
+                    "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
+                    baseUrl+"/actuator/webhooks", "entity", "case"), "payload_test");
+            Assertions.assertEquals(1, fluxData4.getSize());
+            
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData4.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
         }
     }
-
 }

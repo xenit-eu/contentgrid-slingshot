@@ -1,46 +1,14 @@
 package eu.xenit.contentgrid.slingshot;
 
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.info.BuildProperties;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
-import org.springframework.context.annotation.Bean;
-import org.springframework.lang.Nullable;
-
-import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 @SpringBootApplication
-@EnableConfigurationProperties(WebhookConfigurationProperties.class)
 public class SlingshotApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(SlingshotApplication.class, args);
-    }
-
-    @Bean
-    @RefreshScope
-    WebhookClientsProvider inMemoryWebhookClientsProvider(
-            WebhookConfigurationProperties webhookProperties) {
-        return new WebhookClientsProvider.InMemoryWebhookClientsProvider(
-                webhookProperties.getClient());
-    }
-
-    @Bean
-    WebhookClientsProvider contentGridApiWebhookClientsProvider(
-            WebhookConfigurationProperties props) {
-        return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider(props);
-    }
-
-    @Bean
-    WebhookPublisher webhookPublisher(WebhookConfigurationProperties props,
-            ObjectProvider<WebhookClientsProvider> webhookClientsProviders,
-            @Nullable MeterRegistry meterRegistry, BuildProperties buildInfo) {
-        return new WebhookPublisher(props,
-                webhookClientsProviders.orderedStream().collect(Collectors.toList()),
-                meterRegistry, buildInfo);
     }
 }

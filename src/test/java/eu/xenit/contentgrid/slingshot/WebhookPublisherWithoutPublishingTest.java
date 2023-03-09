@@ -1,31 +1,49 @@
 package eu.xenit.contentgrid.slingshot;
 
 import java.net.URI;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.boot.info.BuildProperties;
 
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
-import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
-import eu.xenit.contentgrid.slingshot.WebhookPublisher;
+import com.nimbusds.jose.crypto.RSASSASigner;
+
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import eu.xenit.contentgrid.slingshot.service.JwtService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 public class WebhookPublisherWithoutPublishingTest {
 
     // TODO add test without required provided
-    
-    WebhookConfigurationProperties props = new WebhookConfigurationProperties();
+
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
+    Supplier<PrivateKey> privateKey = () -> {
+        KeyPairGenerator kpg;
+        try {
+            kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            KeyPair kp = kpg.generateKeyPair();
+            return kp.getPrivate();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    RSASSASigner signer = new RSASSASigner(privateKey.get());
+    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"));
+    
     BuildProperties buildProperties = new BuildProperties(new Properties()) {
         @Override
         public String getVersion() {
@@ -44,11 +62,9 @@ public class WebhookPublisherWithoutPublishingTest {
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig));
-        Assertions.assertEquals(1, inMemoryProvider.getClients(
-                Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
-                .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                meterRegistry, buildProperties.getVersion());
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -83,14 +99,14 @@ public class WebhookPublisherWithoutPublishingTest {
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig1, clientConfig2));
-        Assertions
-                .assertEquals(2,
-                        inMemoryProvider
-                                .getClients(Map.of("test2", "test2", "test", "test", "application",
-                                        "app1", "action", "act", "type", "type", "version", "v1"))
-                                .getConfigList().size());
+        Assertions.assertEquals(2,
+                inMemoryProvider
+                        .getClients(Map.of("test2", "test2", "test", "test", "application", "app1",
+                                "action", "act", "type", "type", "version", "v1"))
+                        .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                meterRegistry, buildProperties.getVersion());
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -129,7 +145,8 @@ public class WebhookPublisherWithoutPublishingTest {
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
                 .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                meterRegistry, buildProperties.getVersion());
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of("test",
                 "test", "application", "app1", "action", "act", "type", "type", "version", "v1"));
@@ -164,14 +181,14 @@ public class WebhookPublisherWithoutPublishingTest {
 
         WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
                 List.of(clientConfig1, clientConfig2));
-        Assertions
-                .assertEquals(2,
-                        inMemoryProvider
-                                .getClients(Map.of("test2", "test2", "test", "test", "application",
-                                        "app1", "action", "act", "type", "type", "version", "v1"))
-                                .getConfigList().size());
+        Assertions.assertEquals(2,
+                inMemoryProvider
+                        .getClients(Map.of("test2", "test2", "test", "test", "application", "app1",
+                                "action", "act", "type", "type", "version", "v1"))
+                        .getConfigList().size());
 
-        WebhookPublisher publisher = new WebhookPublisher(props, List.of(inMemoryProvider), meterRegistry, buildProperties);
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
+                meterRegistry, buildProperties.getVersion());
 
         List<WebClientEndpointsConfig> oneClientFound = publisher.findMatchingClients(Map.of());
         Assertions.assertEquals(0, oneClientFound.size());

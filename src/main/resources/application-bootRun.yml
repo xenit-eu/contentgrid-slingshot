@@ -10,8 +10,15 @@ management.endpoints.web.exposure.include: '*'
 
 logging.level.eu.xenit.contentgrid.webhooks.WebhookPublisher: TRACE 
 
-#contentgrid:
-#  webhooks:
+contentgrid:
+  webhooks:
+    signing:
+      jwt:
+        #retired-keys: classpath:/keys/**.key, classpath:/keys/aprivate.key
+        generate-key: true
+        #signing-key:  classpath:/keys/private.key
+        issuer: https://something
+
 #    #queue: content-grid.events
 #    #requestTimeout: 30 
 #    client:            
