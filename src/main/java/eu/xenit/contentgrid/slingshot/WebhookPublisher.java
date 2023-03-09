@@ -12,7 +12,6 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatus.Series;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -307,26 +306,26 @@ public class WebhookPublisher {
         return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
     }
 
-    @SuppressWarnings("serial")
-    static class WebhookDeliveryException extends RuntimeException {
+//    @SuppressWarnings("serial")
+//    static class WebhookDeliveryException extends RuntimeException {
+//
+//        final HttpStatus status;
+//
+//        public WebhookDeliveryException(String message, HttpStatus status) {
+//            super(message);
+//            this.status = status;
+//        }
+//
+//        public HttpStatus getStatus() {
+//            return status;
+//        }
+//    }
 
-        final HttpStatus status;
-
-        public WebhookDeliveryException(String message, HttpStatus status) {
-            super(message);
-            this.status = status;
-        }
-
-        public HttpStatus getStatus() {
-            return status;
-        }
-    }
-
-    public static enum MessageReceivedStatus {
+    static enum MessageReceivedStatus {
         no_matching_config, valid, missing_headers, null_payload
     }
 
-    public static enum WebhookEndpointInvocationStatus {
+    static enum WebhookEndpointInvocationStatus {
         success, failure
     }
 }

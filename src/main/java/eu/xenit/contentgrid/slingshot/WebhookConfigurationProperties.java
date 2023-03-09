@@ -2,7 +2,6 @@ package eu.xenit.contentgrid.slingshot;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;

@@ -62,19 +62,19 @@ public interface WebhookClientsProvider {
             success, config_location_missing, cached, failure
         }
 
-        public WebConfigProviderResponse() {
+        WebConfigProviderResponse() {
             this(WebConfigProviderStatus.success);
         }
 
-        public WebConfigProviderResponse(WebConfigProviderStatus status) {
+        WebConfigProviderResponse(WebConfigProviderStatus status) {
             this(status, Collections.emptyList());
         }
 
-        public WebConfigProviderResponse(List<WebClientEndpointsConfig> configList) {
+        WebConfigProviderResponse(List<WebClientEndpointsConfig> configList) {
             this(WebConfigProviderStatus.success, configList);
         }
 
-        public WebConfigProviderResponse(WebConfigProviderStatus status,
+        WebConfigProviderResponse(WebConfigProviderStatus status,
                 List<WebClientEndpointsConfig> configList) {
             Assert.notNull(configList, "configList cannot be null");
             Assert.notNull(status, "status cannot be null");
@@ -96,7 +96,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    public static class WebClientEndpointsConfig {
+    static class WebClientEndpointsConfig {
         final Map<String, String> filters;
         final List<WebClientEndpointConfig> endpoints;
 
@@ -125,7 +125,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    public static class WebClientEndpointConfig {
+    static class WebClientEndpointConfig {
         final WebClient webClient;
         final Map<String, String> filters;
         final String endpoint;
@@ -143,7 +143,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    public static class InMemoryWebhookClientsProvider implements WebhookClientsProvider {
+    static class InMemoryWebhookClientsProvider implements WebhookClientsProvider {
         private final List<WebClientEndpointsConfig> clients;
 
         public InMemoryWebhookClientsProvider(List<WebhookClientConfig> clients) {
@@ -165,7 +165,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    public static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
+    static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
         private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();
 
         public WebConfigProviderResponse getClients(Map<String, String> headers) {
@@ -208,7 +208,7 @@ public interface WebhookClientsProvider {
             }
         }
 
-        public static class WebhookClientConfigResponse {
+        static class WebhookClientConfigResponse {
             private List<WebhookClientConfig> client;
 
             public void setClient(List<WebhookClientConfig> client) {
@@ -220,7 +220,7 @@ public interface WebhookClientsProvider {
             }
         }
 
-        public static class WebhookConfigResponse {
+        static class WebhookConfigResponse {
             private WebhookClientConfigResponse webhooks;
 
             public WebhookClientConfigResponse getWebhooks() {
