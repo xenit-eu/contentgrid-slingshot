@@ -322,11 +322,11 @@ public class WebhookPublisher {
         }
     }
 
-    static public enum MessageReceivedStatus {
+    public static enum MessageReceivedStatus {
         no_matching_config, valid, missing_headers, null_payload
     }
 
-    static public enum WebhookEndpointInvocationStatus {
+    public static enum WebhookEndpointInvocationStatus {
         success, failure
     }
 }

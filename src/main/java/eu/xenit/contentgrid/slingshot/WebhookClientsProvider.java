@@ -96,7 +96,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    static public class WebClientEndpointsConfig {
+    public static class WebClientEndpointsConfig {
         final Map<String, String> filters;
         final List<WebClientEndpointConfig> endpoints;
 
@@ -125,7 +125,7 @@ public interface WebhookClientsProvider {
         }
     }
 
-    static public class WebClientEndpointConfig {
+    public static class WebClientEndpointConfig {
         final WebClient webClient;
         final Map<String, String> filters;
         final String endpoint;
