@@ -78,7 +78,7 @@ public class ContentGridApiWebhookClientsProviderTest {
             Assertions.assertEquals(WebConfigProviderStatus.cached, providerResponse3.getStatus());
         }
         
-        public static WebhookConfigResponse prepareResponse(String baseUrl) {
+        WebhookConfigResponse prepareResponse(String baseUrl) {
             WebhookClientConfig webhookClientConfig = new WebhookClientConfig();
             webhookClientConfig.setFilter(Map.of());
             

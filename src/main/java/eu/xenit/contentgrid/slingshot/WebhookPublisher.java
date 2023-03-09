@@ -92,21 +92,15 @@ public class WebhookPublisher {
 
         String payload = message.getPayload();
         if (payload != null) {
-            publishAndSubscribe(headersAsStringValues, payload);
+            PublishingFlux fluxData = publishingFlux(headersAsStringValues, payload);
+            int size = fluxData.size;
+            if (size > 0) {
+                fluxData.flux.subscribeOn(Schedulers.newParallel("contentgrid", size)).parallel(size)
+                        .subscribe();
+            }
         } else {
             LOG.warn("message received: {} with null payload", message);
             recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headersAsStringValues);
-        }
-    }
-
-    void publishAndSubscribe(final Map<String, String> headers, final String payload) {
-
-        PublishingFlux fluxData = publishingFlux(headers, payload);
-        int size = fluxData.size;
-
-        if (size > 0) {
-            fluxData.flux.subscribeOn(Schedulers.newParallel("contentgrid", size)).parallel(size)
-                    .subscribe();
         }
     }
 
@@ -204,8 +198,7 @@ public class WebhookPublisher {
         // case where we have a valid message
         recordMessageReceivedMetric(MessageReceivedStatus.valid, headers);
 
-        LOG.debug("{} client(s) configuration matched for headers: {}", matchedClients.size(),
-                headers);
+        LOG.debug("{} client(s) configuration matched for headers: {}", matchedClients.size(), headers);
         Flux<ResponseEntity<Void>> flux = Flux
                 .fromStream(matchedClients.stream().flatMap(c -> c.getEndpoints().stream()))
                 .flatMap(c -> {
@@ -224,14 +217,17 @@ public class WebhookPublisher {
                     return c.webClient.post()
                             // .contentType(contentType == null ? MediaType.APPLICATION_JSON :
                             // MediaType.valueOf(contentType))
-                            .contentType(MediaType.APPLICATION_JSON).headers(h -> {
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .headers(h -> {
                                 h.set(CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME,
                                         headers.get(MANDATORY_HEADERS.deployment_id.name()));
                                 h.set(CONTENTGRID_APPLICATION_ID_HEADER_NAME,
                                         headers.get(MANDATORY_HEADERS.application_id.name()));
                                 h.set(HttpHeaders.USER_AGENT, getUserAgentHeaderValueWithVersion());
                                 h.set(CONTENTGRID_TOKEN_HEADER_NAME, jwt);
-                            }).body(BodyInserters.fromValue(payload)).retrieve().toBodilessEntity()
+                            })
+                            .body(BodyInserters.fromValue(payload))
+                            .retrieve().toBodilessEntity()
                             .timeout(Duration.ofSeconds(publishingRequestTimeoutInseconds != null
                                     ? publishingRequestTimeoutInseconds
                                     : WebhookConfigurationProperties.REQUEST_TIMEOUT_DEFAULT))
