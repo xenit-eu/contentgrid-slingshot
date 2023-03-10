@@ -16,6 +16,7 @@ import org.springframework.boot.info.BuildProperties;
 
 import com.nimbusds.jose.crypto.RSASSASigner;
 
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.InMemoryWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
@@ -97,13 +98,12 @@ public class WebhookPublisherWithoutPublishingTest {
         clientConfig2.setFilter(Map.of("test", "test", "application", "app1", "action", "act",
                 "type", "type", "version", "v1"));
 
-        WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
+        WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(
                 List.of(clientConfig1, clientConfig2));
         Assertions.assertEquals(2,
                 inMemoryProvider
                         .getClients(Map.of("test2", "test2", "test", "test", "application", "app1",
-                                "action", "act", "type", "type", "version", "v1"))
-                        .getConfigList().size());
+                                "action", "act", "type", "type", "version", "v1")).size());
 
         WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
                 meterRegistry, buildProperties.getVersion());
@@ -139,11 +139,10 @@ public class WebhookPublisherWithoutPublishingTest {
         clientConfig.setFilter(
                 Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"));
 
-        WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
+        WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(
                 List.of(clientConfig));
         Assertions.assertEquals(1, inMemoryProvider.getClients(
-                Map.of("application", "app1", "action", "act", "type", "type", "version", "v1"))
-                .getConfigList().size());
+                Map.of("application", "app1", "action", "act", "type", "type", "version", "v1")).size());
 
         WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
                 meterRegistry, buildProperties.getVersion());
@@ -179,13 +178,12 @@ public class WebhookPublisherWithoutPublishingTest {
         clientConfig2.setFilter(Map.of("test", "test", "application", "app1", "action", "act",
                 "type", "type", "version", "v1"));
 
-        WebhookClientsProvider inMemoryProvider = new WebhookClientsProvider.InMemoryWebhookClientsProvider(
+        WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(
                 List.of(clientConfig1, clientConfig2));
         Assertions.assertEquals(2,
                 inMemoryProvider
                         .getClients(Map.of("test2", "test2", "test", "test", "application", "app1",
-                                "action", "act", "type", "type", "version", "v1"))
-                        .getConfigList().size());
+                                "action", "act", "type", "type", "version", "v1")).size());
 
         WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider),
                 meterRegistry, buildProperties.getVersion());

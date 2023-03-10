@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
@@ -23,27 +22,26 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookClientConfigResponse;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookConfigResponse;
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse;
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 public class ContentGridApiWebhookClientsProviderTest {
+    
 
     @Test
     void when_provider_receivesEmptyHeaders_expect_configListToBeEmpty() {
-        WebConfigProviderResponse providerResponse = new WebhookClientsProvider.ContentGridApiWebhookClientsProvider().getClients(null);
-        
-        Assertions.assertEquals(0, providerResponse.getConfigList().size());
+        List<WebClientEndpointsConfig> configList = new ContentGridApiWebhookClientsProvider(new SimpleMeterRegistry()).getClients(null);
+        Assertions.assertEquals(0, configList.size());
     }
     
     @Test
     void when_provider_receivesUnaccessibleWebhookConfigUrl_expect_configListToBeEmpty() {
-        WebConfigProviderResponse providerResponse = new WebhookClientsProvider.ContentGridApiWebhookClientsProvider()
+        List<WebClientEndpointsConfig> configList = new ContentGridApiWebhookClientsProvider(new SimpleMeterRegistry())
                 .getClients(Map.of("webhookConfigUrl", "http://fail"));
-        
-        Assertions.assertEquals(0, providerResponse.getConfigList().size());
-        Assertions.assertEquals(WebConfigProviderStatus.failure, providerResponse.getStatus());
+        Assertions.assertEquals(0, configList.size());
     }
     
     @Nested
@@ -60,22 +58,21 @@ public class ContentGridApiWebhookClientsProviderTest {
             stubFor(get(urlEqualTo("/actuator/webhooks")).willReturn(okForJson(prepareResponse(""))));
             String baseUrl = wireMock.baseUrl();
             
-            ContentGridApiWebhookClientsProvider provider = new WebhookClientsProvider.ContentGridApiWebhookClientsProvider();
+            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(new SimpleMeterRegistry());
             
             // first call => api config is retrieved
-            WebConfigProviderResponse providerResponse = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
-            Assertions.assertEquals(1, providerResponse.getConfigList().size());
-            Assertions.assertEquals(WebConfigProviderStatus.success, providerResponse.getStatus());
+            List<WebClientEndpointsConfig> configList = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
+            Assertions.assertEquals(1, configList.size());
             
             // second call => api config is cached
-            WebConfigProviderResponse providerResponse2 = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
-            Assertions.assertEquals(1, providerResponse2.getConfigList().size());
-            Assertions.assertEquals(WebConfigProviderStatus.cached, providerResponse2.getStatus());
+            List<WebClientEndpointsConfig> configList2 = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
+            Assertions.assertEquals(1, configList2.size());
             
             // third call => api config is cached
-            WebConfigProviderResponse providerResponse3 = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
-            Assertions.assertEquals(1, providerResponse3.getConfigList().size());
-            Assertions.assertEquals(WebConfigProviderStatus.cached, providerResponse3.getStatus());
+            List<WebClientEndpointsConfig> configList3 = provider.getClients(Map.of("webhookConfigUrl", baseUrl+"/actuator/webhooks"));            
+            Assertions.assertEquals(1, configList3.size());
+            
+            // TODO add ContentGridApiWebhookClientsProvider method execution checks or metrics?
         }
         
         WebhookConfigResponse prepareResponse(String baseUrl) {

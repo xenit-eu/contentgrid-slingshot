@@ -23,8 +23,6 @@ import org.springframework.web.reactive.function.BodyInserters;
 
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.MANDATORY_HEADERS;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse;
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -143,12 +141,10 @@ public class WebhookPublisher {
         Series series = Series.resolve(httpStatusCode);
         String httpStatusSeries = series != null ? series.name() : "-";
         
-        
         if (WebhookEndpointInvocationStatus.failure.equals(webhookInvocationStatus)) { 
           LOG.warn("message could not be delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
         } else {
-            LOG.debug("message delivered to : '{}' received http status code '{}'", endpoint,
-                    httpStatusCode);
+            LOG.debug("message delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
         }
 
         // we are sure that all mandatory tags are present
@@ -164,25 +160,12 @@ public class WebhookPublisher {
         sample.stop(meterRegistry.timer("webhooks", t));
     }
 
-    private void recordApiConfigLookupCallMetric(WebConfigProviderStatus webConfigProviderStatus,
-            final Map<String, String> headers) {
-        // we are sure that all mandatory tags are present
-        Tags mandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
-                .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
-                .map(e -> Tag.of(e.getKey(), e.getValue())).collect(Collectors.toList()));
-
-        Counter counter = Counter.builder("api_config_lookups").tags(mandatoryTagsWithValues)
-                .tag("status", webConfigProviderStatus.name())
-                .description("Number of api config lookup calls").register(meterRegistry);
-        counter.increment();
-    }
-
     PublishingFlux publishingFlux(final Map<String, String> headers, final String payload) {
 
-        if (!WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
+        if (headers == null || headers.isEmpty() || !WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             // case were the message did not have all the mandatory headers
             LOG.warn("message received does not contain all mandatory headers: {}", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers != null ? headers : Collections.emptyMap());
             return new PublishingFlux(Flux.empty(), 0);
         }
 
@@ -272,22 +255,15 @@ public class WebhookPublisher {
         // since each provider can just provide a verified list?
         return providers.stream().flatMap(provider -> {
             try {
-                WebConfigProviderResponse providerResponse = provider.getClients(headersLocal);
-                if (providerResponse == null) {
+                List<WebClientEndpointsConfig> configList = provider.getClients(headersLocal);
+                if (configList == null || configList.isEmpty()) {
                     // This is a safety check
-                    recordApiConfigLookupCallMetric(WebConfigProviderStatus.failure, headersLocal);
                     return Stream.empty();
                 }
-
-                recordApiConfigLookupCallMetric(providerResponse.getStatus(), headersLocal);
-
-                if (providerResponse.isProviderStatusOk()) {
-                    return provider.getClients(headersLocal).getConfigList().stream();
-                }
-                return Stream.empty();
+                
+                return configList.stream();
             } catch (Throwable e) {
                 // This is a safety check
-                recordApiConfigLookupCallMetric(WebConfigProviderStatus.failure, headersLocal);
                 return Stream.empty();
             }
         }).filter(client -> areMatchingHeaders(client.filters, headersLocal))
@@ -305,21 +281,6 @@ public class WebhookPublisher {
 
         return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
     }
-
-//    @SuppressWarnings("serial")
-//    static class WebhookDeliveryException extends RuntimeException {
-//
-//        final HttpStatus status;
-//
-//        public WebhookDeliveryException(String message, HttpStatus status) {
-//            super(message);
-//            this.status = status;
-//        }
-//
-//        public HttpStatus getStatus() {
-//            return status;
-//        }
-//    }
 
     static enum MessageReceivedStatus {
         no_matching_config, valid, missing_headers, null_payload

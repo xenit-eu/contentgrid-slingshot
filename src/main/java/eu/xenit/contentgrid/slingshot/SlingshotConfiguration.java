@@ -36,14 +36,14 @@ public class SlingshotConfiguration {
     }
 
     @Bean
-    WebhookClientsProvider contentGridApiWebhookClientsProvider() {
-        return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider();
+    WebhookClientsProvider contentGridApiWebhookClientsProvider(MeterRegistry meterRegistry) {
+        return new WebhookClientsProvider.ContentGridApiWebhookClientsProvider(meterRegistry);
     }
 
     @Bean
     WebhookPublisher webhookPublisher(JwtService jwkTervice, WebhookConfigurationProperties props,
             ObjectProvider<WebhookClientsProvider> webhookClientsProviders,
-            @Nullable MeterRegistry meterRegistry, @Nullable BuildProperties buildInfo,
+            MeterRegistry meterRegistry, @Nullable BuildProperties buildInfo,
             ApplicationContext ctx) {
 
         return new WebhookPublisher(jwkTervice,

@@ -14,8 +14,11 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebConfigProviderResponse.WebConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import reactor.netty.http.client.HttpClient;
 
 // TODO could be renamed to WebhookConfigProvider and webhooks.client should become webhooks.config
@@ -52,47 +55,21 @@ public interface WebhookClientsProvider {
      * @return list of webhooks client configuration but should never return null or
      *         throw any exception
      */
-    public WebConfigProviderResponse getClients(Map<String, String> headers);
-
-    static class WebConfigProviderResponse {
-        private final List<WebClientEndpointsConfig> configList;
-        private final WebConfigProviderStatus status;
-
-        static enum WebConfigProviderStatus {
-            success, config_location_missing, cached, failure
+    public List<WebClientEndpointsConfig> getClients(Map<String, String> headers);
+        
+    class ConfigProviderStatus {
+        static final ConfigProviderStatus SUCCESS = new ConfigProviderStatus("success"); 
+        static final ConfigProviderStatus CACHED = new ConfigProviderStatus("cached");
+        static final ConfigProviderStatus FAILURE = new ConfigProviderStatus("failure");
+        
+        private final String value;
+        
+        ConfigProviderStatus(String value) {
+            this.value = value;
         }
-
-        WebConfigProviderResponse() {
-            this(WebConfigProviderStatus.success);
-        }
-
-        WebConfigProviderResponse(WebConfigProviderStatus status) {
-            this(status, Collections.emptyList());
-        }
-
-        WebConfigProviderResponse(List<WebClientEndpointsConfig> configList) {
-            this(WebConfigProviderStatus.success, configList);
-        }
-
-        WebConfigProviderResponse(WebConfigProviderStatus status,
-                List<WebClientEndpointsConfig> configList) {
-            Assert.notNull(configList, "configList cannot be null");
-            Assert.notNull(status, "status cannot be null");
-            this.configList = configList;
-            this.status = status;
-        }
-
-        public List<WebClientEndpointsConfig> getConfigList() {
-            return configList;
-        }
-
-        public WebConfigProviderStatus getStatus() {
-            return status;
-        }
-
-        public boolean isProviderStatusOk() {
-            return WebConfigProviderStatus.success.equals(this.status)
-                    || WebConfigProviderStatus.cached.equals(this.status);
+        
+        public String getValue() {
+            return value;
         }
     }
 
@@ -158,33 +135,45 @@ public interface WebhookClientsProvider {
                             .collect(Collectors.toList());
         }
 
-        public WebConfigProviderResponse getClients(Map<String, String> headers) {
-            return new WebConfigProviderResponse(clients.stream()
+        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
+            if(headers == null || headers.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            return clients.stream()
                     .filter(client -> WebhookPublisher.areMatchingHeaders(client.filters, headers))
-                    .collect(Collectors.toList()));
+                    .collect(Collectors.toList());
         }
     }
 
     static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
+        static final ConfigProviderStatus CONFIG_LOCATION_MISSING = new ConfigProviderStatus("config_location_missing"); 
+        
         private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();
+        
+        private final MeterRegistry meterRegistry;
 
-        public WebConfigProviderResponse getClients(Map<String, String> headers) {
-            if(headers == null) {
-                return new WebConfigProviderResponse(
-                        WebConfigProviderStatus.config_location_missing);
+        public ContentGridApiWebhookClientsProvider(MeterRegistry meterRegistry) {
+            this.meterRegistry = meterRegistry;
+        }
+
+        public List<WebClientEndpointsConfig> getClients(Map<String, String> headers) {
+            if(headers == null || headers.isEmpty()) {
+                recordApiConfigLookupCallMetric(CONFIG_LOCATION_MISSING, headers != null ? headers : Collections.emptyMap());
+                return Collections.emptyList();
             }
             
             String webhookConfigUrl = headers.get("webhookConfigUrl");
             if (!StringUtils.hasText(webhookConfigUrl)) {
-                // this is a safety check, we should not even come in here if this header is not
-                // present
-                return new WebConfigProviderResponse(
-                        WebConfigProviderStatus.config_location_missing);
+                // this is a safety check, we should not even come in here if this header is not present
+                recordApiConfigLookupCallMetric(CONFIG_LOCATION_MISSING, headers);
+                return Collections.emptyList();
             }
 
             if (deploymentIdClientsMap.containsKey(webhookConfigUrl)) {
                 List<WebClientEndpointsConfig> list = deploymentIdClientsMap.get(webhookConfigUrl);
-                return new WebConfigProviderResponse(WebConfigProviderStatus.cached, list);
+                recordApiConfigLookupCallMetric(ConfigProviderStatus.CACHED, headers);  
+                return list != null ? list : Collections.emptyList();
             }
 
             try {
@@ -192,7 +181,7 @@ public interface WebhookClientsProvider {
                 WebhookConfigResponse clients = webClient.get().retrieve()
                         .bodyToMono(new ParameterizedTypeReference<WebhookConfigResponse>() {
                         }).block();
-
+                
                 List<WebClientEndpointsConfig> list = clients.getWebhooks().getClient().stream()
                         .map(client -> new WebClientEndpointsConfig(client.getFilter(),
                                 client.getEndpoints().stream()
@@ -202,10 +191,26 @@ public interface WebhookClientsProvider {
                         .collect(Collectors.toList());
 
                 deploymentIdClientsMap.put(webhookConfigUrl, list);
-                return new WebConfigProviderResponse(list);
+                
+                recordApiConfigLookupCallMetric(ConfigProviderStatus.SUCCESS, headers);               
+                return list != null ? list : Collections.emptyList();
             } catch (Throwable ex) {
-                return new WebConfigProviderResponse(WebConfigProviderStatus.failure);
+                recordApiConfigLookupCallMetric(ConfigProviderStatus.FAILURE, headers);
+                return Collections.emptyList();
             }
+        }
+        
+        private void recordApiConfigLookupCallMetric(ConfigProviderStatus webConfigProviderStatus,
+                final Map<String, String> headers) {
+            // we are sure that all mandatory tags are present
+            Tags mandatoryTagsWithValues = Tags.of(headers.entrySet().stream()
+                    .filter(e -> WebhookClientsProvider.isMandatoryHeader(e.getKey()))
+                    .map(e -> Tag.of(e.getKey(), e.getValue())).collect(Collectors.toList()));
+
+            Counter counter = Counter.builder("api_config_lookups").tags(mandatoryTagsWithValues)
+                    .tag("status", webConfigProviderStatus.getValue())
+                    .description("Number of api config lookup calls").register(meterRegistry);
+            counter.increment();
         }
 
         static class WebhookClientConfigResponse {

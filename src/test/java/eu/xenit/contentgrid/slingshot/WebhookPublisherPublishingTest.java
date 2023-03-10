@@ -53,9 +53,6 @@ import reactor.test.StepVerifier;
 
 public final class WebhookPublisherPublishingTest {
 
-    MeterRegistry meterRegistry = new SimpleMeterRegistry();
-    
-
     Supplier<PrivateKey> privateKey = () -> {
         try {
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -77,11 +74,6 @@ public final class WebhookPublisherPublishingTest {
         }
     };
     
-    @BeforeEach
-    public void clear() {
-        meterRegistry.clear();
-    }
-
     @Test
     void when_endpointIsNotReachable_expect_ok() {
         WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
@@ -93,7 +85,7 @@ public final class WebhookPublisherPublishingTest {
 
         WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(List.of(clientConfig1));
 
-        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), meterRegistry, buildProperties.getVersion());
+        WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), new SimpleMeterRegistry(), buildProperties.getVersion());
         PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
                 "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
                 "http://test", "entity", "case"), "payload_test");
@@ -125,7 +117,7 @@ public final class WebhookPublisherPublishingTest {
             
             WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(List.of(clientConfig1));
             
-            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), meterRegistry, buildProperties.getVersion());
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), new SimpleMeterRegistry(), buildProperties.getVersion());
             PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
                     "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",                    
                     "http://test", "entity", "case"), "payload_test");
@@ -167,7 +159,7 @@ public final class WebhookPublisherPublishingTest {
             
             WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(List.of(clientConfig1, clientConfig2));
             
-            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), meterRegistry, buildProperties.getVersion());
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(inMemoryProvider), new SimpleMeterRegistry(), buildProperties.getVersion());
             PublishingFlux fluxData = publisher.publishingFlux(Map.of("application_id", "app1", "deployment_id",
                     "abcd", "action", "act", "trigger", "type", "version", "v1", "webhookConfigUrl",
                     baseUrl + "/endpoint", "entity", "case"), "payload_test");
@@ -198,15 +190,10 @@ public final class WebhookPublisherPublishingTest {
         @Autowired
         WireMockServer wireMock;
         
-        @BeforeEach
-        public void clear() {
-            meterRegistry.clear();
-        }
-        
         @Test
         void when_webhookEndpointExistsAndWebhookConfigHasUnkownField_expect_correctResponseDeserialization() {
-            
-            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider();            
+            SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);            
             WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
             
             String baseUrl = wireMock.baseUrl();
@@ -240,8 +227,8 @@ public final class WebhookPublisherPublishingTest {
         
         @Test
         void when_webhookEndpointExistsAndWebhookConfigHasMissingField_expect_correctResponseDeserialization() {
-            
-            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider();            
+            SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);                
             WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
             
             String baseUrl = wireMock.baseUrl();
@@ -271,8 +258,8 @@ public final class WebhookPublisherPublishingTest {
 
         @Test
         void when_webhookEndpointExists_expect_okAndAllCGHeaders() {
-            
-            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider();            
+            SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();            
+            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);                 
             WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
             
             String baseUrl = wireMock.baseUrl();
@@ -374,6 +361,50 @@ public final class WebhookPublisherPublishingTest {
 //                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
 //                    .withHeader(HttpHeaders.USER_AGENT, new AnythingPattern()));
 
+        }
+    }
+    
+    @Nested
+    @ExtendWith(SpringExtension.class)
+    @AutoConfigureWireMock(port = 0)
+    public class MultipleConfigProvidersWithCustomerEndpointMockTest {
+
+        @Autowired
+        WireMockServer wireMock;
+        
+        @Test
+        void when_webhookEndpointExistsAndWebhookConfigHasUnkownField_expect_correctResponseDeserialization() {
+            SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();            
+            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);                 
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
+            
+            String baseUrl = wireMock.baseUrl();
+            
+            stubFor(get(urlEqualTo("/actuator/webhooks")).willReturn(
+                    responseDefinition().withHeader("Content-Type", "application/json").withBody(prepareUnknownFieldResponse(baseUrl))));
+            
+            stubFor(post(urlEqualTo("/endpoint"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME, new EqualToPattern("app1")) 
+                    .withHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, new EqualToPattern("abcd"))
+                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
+                    .withHeader(HttpHeaders.USER_AGENT, new EqualToPattern(publisher.getUserAgentHeaderValueWithVersion()))
+                    .withHeader(HttpHeaders.CONTENT_TYPE, new EqualToPattern(MediaType.APPLICATION_JSON_VALUE))
+                    .withRequestBody(new EqualToPattern("payload_test"))
+                    .willReturn(okForEmptyJson()));
+            
+            PublishingFlux fluxData = publisher.publishingFlux(
+                    Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create", 
+                            "version", "v1", "webhookConfigUrl", baseUrl+"/actuator/webhooks"),
+                    "payload_test");
+            Assertions.assertEquals(2, fluxData.getSize());
+            
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .verifyComplete();
+            
+            //TODO check metrics
         }
     }
     
