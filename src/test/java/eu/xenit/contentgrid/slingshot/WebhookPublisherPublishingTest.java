@@ -9,6 +9,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -19,7 +20,6 @@ import java.util.Properties;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,11 +32,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.common.Json;
 import com.github.tomakehurst.wiremock.matching.AnythingPattern;
 import com.github.tomakehurst.wiremock.matching.EqualToPattern;
 import com.nimbusds.jose.crypto.RSASSASigner;
 
+import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookClientConfigResponse;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookConfigResponse;
@@ -46,7 +46,6 @@ import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClie
 import eu.xenit.contentgrid.slingshot.WebhookPublisher.PublishingFlux;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import reactor.test.StepVerifier;
@@ -222,7 +221,16 @@ public final class WebhookPublisherPublishingTest {
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .verifyComplete();
             
-            //TODO check metrics
+            //Timer webhooksMetric = meterRegistry.find("webhooks").timer();
+            Counter messagesMetric = meterRegistry.find("messages").counter();            
+            Counter successApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.SUCCESS.getValue()).counter();
+            Counter cachedApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.CACHED.getValue()).counter();
+            Counter failureApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.FAILURE.getValue()).counter();
+            
+            Assertions.assertEquals(1, successApiConfigMetric.count());
+            Assertions.assertNull(cachedApiConfigMetric);
+            Assertions.assertNull(failureApiConfigMetric);
+            Assertions.assertEquals(1, messagesMetric.count());
         }
         
         @Test
@@ -253,11 +261,20 @@ public final class WebhookPublisherPublishingTest {
             
             StepVerifier.create(fluxData.getFlux()).verifyComplete();
             
-            //TODO check metrics
+            //Timer webhooksMetric = meterRegistry.find("webhooks").timer();
+            Counter messagesMetric = meterRegistry.find("messages").counter();            
+            Counter successApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.SUCCESS.getValue()).counter();
+            Counter cachedApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.CACHED.getValue()).counter();
+            Counter failureApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.FAILURE.getValue()).counter();
+            
+            Assertions.assertNull(successApiConfigMetric);
+            Assertions.assertNull(cachedApiConfigMetric);
+            Assertions.assertEquals(1, failureApiConfigMetric.count());
+            Assertions.assertEquals(1, messagesMetric.count());
         }
 
         @Test
-        void when_webhookEndpointExists_expect_okAndAllCGHeaders() {
+        void when_webhookEndpointExists_expect_ok() {
             SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();            
             ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);                 
             WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
@@ -344,23 +361,16 @@ public final class WebhookPublisherPublishingTest {
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .verifyComplete();
             
-            Counter metricMessages4 = meterRegistry.find("messages").counter();
-            Counter metricLookups4 = meterRegistry.find("api_config_lookups").counter();
-            Timer metricWebhooks4 = meterRegistry.find("webhooks").timer();
+            //Timer webhooksMetric = meterRegistry.find("webhooks").timer();
+            Counter messagesMetric = meterRegistry.find("messages").counter();            
+            Counter successApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.SUCCESS.getValue()).counter();
+            Counter cachedApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.CACHED.getValue()).counter();
+            Counter failureApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.FAILURE.getValue()).counter();
             
-            meterRegistry.forEachMeter(m -> {
-                System.out.println(m.getId() + " - " +m.measure());
-            });
-            
-            System.out.println();
-            
-//            // verify that we sent the correct headers
-//            verify(postRequestedFor(urlEqualTo("/test"))
-//                    .withHeader(WebhookPublisher.CONTENTGRID_APPLICATION_ID_HEADER_NAME, new EqualToPattern("app1")) 
-//                    .withHeader(WebhookPublisher.CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME, new EqualToPattern("abcd"))
-//                    .withHeader(WebhookPublisher.CONTENTGRID_TOKEN_HEADER_NAME, new AnythingPattern())
-//                    .withHeader(HttpHeaders.USER_AGENT, new AnythingPattern()));
-
+            Assertions.assertEquals(2, successApiConfigMetric.count());
+            Assertions.assertEquals(3, cachedApiConfigMetric.count());
+            Assertions.assertNull(failureApiConfigMetric);
+            Assertions.assertEquals(5, messagesMetric.count());
         }
     }
     
@@ -373,10 +383,18 @@ public final class WebhookPublisherPublishingTest {
         WireMockServer wireMock;
         
         @Test
-        void when_webhookEndpointExistsAndWebhookConfigHasUnkownField_expect_correctResponseDeserialization() {
+        void when_apiConfigAndInMemoryConfigProvidersWithTwoMessages_expect_ok() {
+            WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
+            WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
+            clientConfig1EndpointConfig.setUri(URI.create("http://mockserver/hook1"));
+            clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
+            clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create"));
+
+            WebhookClientsProvider inMemoryProvider = new InMemoryWebhookClientsProvider(List.of(clientConfig1));
+            
             SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();            
-            ContentGridApiWebhookClientsProvider provider = new ContentGridApiWebhookClientsProvider(meterRegistry);                 
-            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(provider), meterRegistry, buildProperties.getVersion());
+            ContentGridApiWebhookClientsProvider apiConfigProvider = new ContentGridApiWebhookClientsProvider(meterRegistry);                 
+            WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(apiConfigProvider, inMemoryProvider), meterRegistry, buildProperties.getVersion());
             
             String baseUrl = wireMock.baseUrl();
             
@@ -396,15 +414,38 @@ public final class WebhookPublisherPublishingTest {
                     Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create", 
                             "version", "v1", "webhookConfigUrl", baseUrl+"/actuator/webhooks"),
                     "payload_test");
-            Assertions.assertEquals(2, fluxData.getSize());
+            Assertions.assertEquals(3, fluxData.getSize());
             
             // verify that we received back HttpStatus 200
             StepVerifier.create(fluxData.getFlux())
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
-                    .verifyComplete();
+                    .expectErrorMatches(ex -> UnknownHostException.class.equals(ex.getCause().getClass()))
+                    .verify();
             
-            //TODO check metrics
+            PublishingFlux fluxData2 = publisher.publishingFlux(
+                    Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create", 
+                            "version", "v1", "webhookConfigUrl", baseUrl+"/actuator/webhooks"),
+                    "payload_test");
+            Assertions.assertEquals(3, fluxData.getSize());
+            
+            // verify that we received back HttpStatus 200
+            StepVerifier.create(fluxData2.getFlux())
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectErrorMatches(ex -> UnknownHostException.class.equals(ex.getCause().getClass()))
+                    .verify();
+            
+            //Timer webhooksMetric = meterRegistry.find("webhooks").timer();
+            Counter messagesMetric = meterRegistry.find("messages").counter();            
+            Counter successApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.SUCCESS.getValue()).counter();
+            Counter cachedApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.CACHED.getValue()).counter();
+            Counter failureApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.FAILURE.getValue()).counter();
+            
+            Assertions.assertEquals(1, successApiConfigMetric.count());
+            Assertions.assertEquals(1, cachedApiConfigMetric.count());
+            Assertions.assertNull(failureApiConfigMetric);
+            Assertions.assertEquals(2, messagesMetric.count());            
         }
     }
     
