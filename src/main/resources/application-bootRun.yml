@@ -17,7 +17,7 @@ contentgrid:
         #retired-keys: classpath:/keys/**.key, classpath:/keys/aprivate.key
         generate-key: true
         #signing-key:  classpath:/keys/private.key
-        issuer: https://something
+        #issuer: https://something
 
 #    #queue: content-grid.events
 #    #requestTimeout: 30 

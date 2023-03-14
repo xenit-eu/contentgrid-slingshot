@@ -27,7 +27,7 @@ import eu.xenit.contentgrid.slingshot.service.JwkService;
 
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(JwkController.class)
-public class JwKControllerTest {
+public class JwkControllerTest {
     
     @Autowired
     private MockMvc mockMvc;

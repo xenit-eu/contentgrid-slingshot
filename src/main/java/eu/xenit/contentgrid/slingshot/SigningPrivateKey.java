@@ -27,6 +27,8 @@ public class SigningPrivateKey {
 
             rsaKey = new RSAKeyGenerator(2048).keyIDFromThumbprint(true).generate();
         } else {
+            Assert.notNull(jwtConfig.getSigningKey(), "jwt.signing-key must be provided when generated key is not used");
+
             rsaKey = JwkService.jwk(jwtConfig.getSigningKey());
         }
     }

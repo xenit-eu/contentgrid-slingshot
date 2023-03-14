@@ -26,12 +26,12 @@ public class SigningJwtConfigurationTest {
     }
 
     @Test
-    void when_generateKeyIsFalseAndSigningKeyNotSet_expect_NPE() throws JOSEException {
+    void when_generateKeyIsFalseAndSigningKeyNotSet_expect_IllegalArgumentException() throws JOSEException {
 
         WebhookJWKConfig jwtConfig = new WebhookJWKConfig();
         jwtConfig.setGenerateKey(false);
 
-        assertThrows(NullPointerException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
             new SigningPrivateKey(jwtConfig);
         });
     }

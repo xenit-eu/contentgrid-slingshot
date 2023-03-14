@@ -23,7 +23,7 @@ public class WebhookConfigurationProperties {
     private String queue = "contentgrid.events";
     private Long requestTimeout = REQUEST_TIMEOUT_DEFAULT;
     private List<WebhookClientConfig> client;
-    private WebhookSigningConfig signing;
+    private WebhookSigningConfig signing = new WebhookSigningConfig();
     
     public List<WebhookClientConfig> getClient() {
         return client;
@@ -60,7 +60,7 @@ public class WebhookConfigurationProperties {
     }
     
     public static class WebhookSigningConfig {
-        private WebhookJWKConfig jwt;
+        private WebhookJWKConfig jwt = new WebhookJWKConfig();
         
         public WebhookJWKConfig getJwt() {
             return jwt;

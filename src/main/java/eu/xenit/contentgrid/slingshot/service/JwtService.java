@@ -21,7 +21,6 @@ public class JwtService {
 
     public JwtService(RSASSASigner signer, URI issuer) {
         Assert.notNull(signer, "signer cannot be null");
-        Assert.notNull(issuer, "issuer cannot be null");
         this.signer = signer;
         this.issuer = issuer;
     }
@@ -31,15 +30,19 @@ public class JwtService {
         Assert.hasText(subject, "subject cannot be null");
         Assert.notNull(audience, "audience cannot be null");
 
-        JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder().subject(subject)
-                .issuer(issuer.toString()).audience(audience.toString())
-                .expirationTime(Date.from(instant.plusSeconds(300))).issueTime(Date.from(instant))
+        JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
+                .subject(subject)
+                .audience(audience.toString())
+                .expirationTime(Date.from(instant.plusSeconds(300)))
+                .issueTime(Date.from(instant))
                 .jwtID(UUID.randomUUID().toString());
-
-        JWTClaimsSet claimsSet = builder.build();
+        
+        if(issuer != null) {
+          claimsBuilder.issuer(issuer.toString());
+        }
 
         SignedJWT signedJWT = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).build(),
-                claimsSet);
+                claimsBuilder.build());
         try {
             signedJWT.sign(signer);
             return signedJWT;
