@@ -6,29 +6,24 @@ import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider;
-import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
-
 public class InMemoryWebhookClientsProviderTest {
 
     @Test
     void when_webhookClientConfig_isEmptyAndHeadersAreEmpty_expect_ok() {
         Assertions.assertEquals(0,
                 new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of())
-                        .getClients(null).getConfigList().size());
+                        .getClients(null).size());
 
         Assertions.assertEquals(0,
                 new WebhookClientsProvider.InMemoryWebhookClientsProvider(List.of())
-                        .getClients(Map.of()).getConfigList().size());
+                        .getClients(Map.of()).size());
     }
 
     @Test
     void  when_webhookClientConfig_isNullAndHeadersAreEmpty_expect_IllegalArgumentException() {
-        
         Assertions.assertEquals(0,
                 new WebhookClientsProvider.InMemoryWebhookClientsProvider(null)
-                        .getClients(Map.of()).getConfigList().size());
-               
+                        .getClients(Map.of()).size());
     }
 
     @Test

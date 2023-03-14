@@ -8,18 +8,15 @@ contentgrid:
            application: name10
          endpoints:
          - uri: http://localhost:9999/hooksite10
-           secret: abcde  
        - filter:
            action: created
            application: name1
            type: account-state-zip
          endpoints:
          - uri: http://localhost:8888/hooksite1
-           secret: abcdef  
        - filter:
            action: created
            application: name1
            type: account-state
          endpoints:
          - uri: http://localhost:8080/hooksite3
-           secret: abcdefg  

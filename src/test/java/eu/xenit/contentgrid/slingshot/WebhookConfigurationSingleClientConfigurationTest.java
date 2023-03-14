@@ -12,7 +12,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 
@@ -42,15 +41,10 @@ public class WebhookConfigurationSingleClientConfigurationTest {
 
         Assertions.assertEquals(URI.create("http://localhost:9999/hooksite1"),
                 endpointConfig.getUri());
-        Assertions.assertEquals("abcd", endpointConfig.getSecret());
 
         Map<String, String> filter = client.getFilter();
         Assertions.assertEquals(2, filter.size());
         Assertions.assertEquals("created", filter.get("action"));
         Assertions.assertEquals("name1", filter.get("application"));
-
-        // WebClientEndpointConfig clientEndpointConfig = new
-        // WebClientEndpointConfig(endpointConfig.getUri(), endpointConfig.getSecret(),
-        // filter);
     }
 }

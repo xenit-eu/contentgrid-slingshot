@@ -1,26 +1,30 @@
 package eu.xenit.contentgrid.slingshot;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.util.Assert;
 
 @ConfigurationProperties("contentgrid.webhooks")
-@RefreshScope
 public class WebhookConfigurationProperties {
-
+    
     public static final Long REQUEST_TIMEOUT_DEFAULT = 5L;
 
-    private String queue = "contentgrid.events"; // queue is not refreshable
+    private String queue = "contentgrid.events";
     private Long requestTimeout = REQUEST_TIMEOUT_DEFAULT;
     private List<WebhookClientConfig> client;
-
+    private WebhookSigningConfig signing = new WebhookSigningConfig();
+    
     public List<WebhookClientConfig> getClient() {
         return client;
     }
@@ -46,7 +50,76 @@ public class WebhookConfigurationProperties {
         Assert.notNull(requestTimeout, "requestTimeout cannot be null");
         this.requestTimeout = requestTimeout;
     }
-
+    
+    public WebhookSigningConfig getSigning() {
+        return signing;
+    }
+    
+    public void setSigning(WebhookSigningConfig signing) {
+        this.signing = signing;
+    }
+    
+    public static class WebhookSigningConfig {
+        private WebhookJWKConfig jwt = new WebhookJWKConfig();
+        
+        public WebhookJWKConfig getJwt() {
+            return jwt;
+        }
+        
+        public void setJwt(WebhookJWKConfig jwt) {
+            this.jwt = jwt;
+        }
+    }
+    
+    public static class WebhookJWKConfig {
+        private List<Resource> retiredKeys;
+        private Resource signingKey;
+        private boolean generateKey = false;
+        private URI issuer;
+        
+        public List<Resource> getRetiredKeys() {
+            return retiredKeys;
+        }
+        
+        public void setRetiredKeys(List<String> retiredKeys) {
+            Assert.notEmpty(retiredKeys, "retiredKeys cannot be empty");
+            
+            PathMatchingResourcePatternResolver patternResolver = new PathMatchingResourcePatternResolver();            
+            this.retiredKeys = retiredKeys.stream().map(key -> {
+                try {
+                    return Arrays.asList(patternResolver.getResources(key));                    
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }).flatMap(resources -> resources.stream()).collect(Collectors.toList());
+        }
+        
+        public Resource getSigningKey() {
+            return signingKey;
+        }
+        
+        public void setSigningKey(Resource signingKey) {
+            Assert.notNull(signingKey, "signingKey cannot be null");
+            this.signingKey = signingKey;
+        }
+        
+        public boolean isGenerateKey() {
+            return generateKey;
+        }
+        
+        public void setGenerateKey(boolean generateKey) {
+            this.generateKey = generateKey;
+        }
+        
+        public URI getIssuer() {
+            return issuer;
+        }
+        
+        public void setIssuer(URI issuer) {
+            this.issuer = issuer;
+        }
+    }
+    
     public static class WebhookClientConfig {
 
         private Map<String, String> filter = new HashMap<>();
@@ -81,7 +154,6 @@ public class WebhookConfigurationProperties {
 
         public static class WebhookClientEndpointConfig {
             private URI uri;
-            private String secret;
 
             public URI getUri() {
                 return uri;
@@ -90,14 +162,6 @@ public class WebhookConfigurationProperties {
             public void setUri(URI uri) {
                 Assert.notNull(uri, "uri cannot be null");
                 this.uri = uri;
-            }
-
-            public String getSecret() {
-                return secret;
-            }
-
-            public void setSecret(String secret) {
-                this.secret = secret;
             }
         }
 

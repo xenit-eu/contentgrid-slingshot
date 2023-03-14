@@ -6,10 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.amqp.dsl.Amqp;
 import org.springframework.integration.dsl.IntegrationFlow;
-import org.springframework.integration.dsl.IntegrationFlows;
 
 @Configuration
-public class WebhookMessageConsumerConfiguration {
+public class MessagingQueueConfiguration {
 
     public static final String CHANNEL_NAME = "contentgrid.channel";
     public static final String WEBHOOKS_HEADERNAME = "webhooks_headerName";
@@ -23,8 +22,8 @@ public class WebhookMessageConsumerConfiguration {
     @Bean
     public IntegrationFlow routeIncomingAmqpMessagesFlow(ConnectionFactory connectionFactory,
             WebhookConfigurationProperties props, Queue queue) {
-        return IntegrationFlows.from(Amqp.inboundAdapter(connectionFactory, queue))
+        return IntegrationFlow.from(Amqp.inboundAdapter(connectionFactory, queue))
                 .transform(message -> message)
-                .channel(WebhookMessageConsumerConfiguration.CHANNEL_NAME).get();
+                .channel(MessagingQueueConfiguration.CHANNEL_NAME).get();
     }
 }
