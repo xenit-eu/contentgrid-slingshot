@@ -14,18 +14,24 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import eu.xenit.contentgrid.slingshot.SigningPrivateKey;
+
 public class JwtService {
 
-    private final RSASSASigner signer;
+    private final SigningPrivateKey signingPrivateKey;
     private final URI issuer;
-    private final String kid;
+    private final RSASSASigner signer;    
 
-    public JwtService(RSASSASigner signer, URI issuer, String kid) {
-        Assert.notNull(signer, "signer cannot be null");
-        Assert.hasText(kid, "kid cannot be empty");
-        this.signer = signer;
+    public JwtService(SigningPrivateKey signingPrivateKey, URI issuer) {
+        Assert.notNull(signingPrivateKey, "signingPrivateKey cannot be null");                
+        
+        this.signingPrivateKey = signingPrivateKey;
         this.issuer = issuer;
-        this.kid = kid;
+        try {
+            this.signer = new RSASSASigner(signingPrivateKey.getRSAKey());
+        } catch (JOSEException e) {
+            throw new RuntimeException("could not create the RSA Signer", e);
+        }
     }
 
     public SignedJWT generateJwt(Instant instant, String subject, URI audience) {
@@ -44,7 +50,8 @@ public class JwtService {
           claimsBuilder.issuer(issuer.toString());
         }
         
-        SignedJWT signedJWT = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(kid).build(),
+        SignedJWT signedJWT = new SignedJWT(
+                new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(getKid()).build(),
                 claimsBuilder.build());
         try {
             signedJWT.sign(signer);
@@ -52,5 +59,9 @@ public class JwtService {
         } catch (JOSEException e) {
             throw new RuntimeException("Token could not be signed", e);
         }
+    }
+    
+    public String getKid() {
+        return signingPrivateKey.getRSAKey().getKeyID();
     }
 }

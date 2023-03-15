@@ -59,9 +59,8 @@ public class SlingshotConfiguration {
     }
 
     @Bean
-    JwtService jwtService(SigningPrivateKey signingPrivateKey, WebhookConfigurationProperties props) throws JOSEException {
-        RSAKey rsaKey = signingPrivateKey.getRSAKey();
-        return new JwtService(new RSASSASigner(rsaKey), props.getSigning().getJwt().getIssuer(), rsaKey.getKeyID());
+    JwtService jwtService(SigningPrivateKey signingPrivateKey, WebhookConfigurationProperties props) throws JOSEException {        
+        return new JwtService(signingPrivateKey, props.getSigning().getJwt().getIssuer());
     }
 
     @Bean

@@ -10,14 +10,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Nested;
@@ -34,7 +29,6 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.matching.AnythingPattern;
 import com.github.tomakehurst.wiremock.matching.EqualToPattern;
-import com.nimbusds.jose.crypto.RSASSASigner;
 
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider;
@@ -43,28 +37,16 @@ import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebho
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.InMemoryWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookJWKConfig;
 import eu.xenit.contentgrid.slingshot.WebhookPublisher.PublishingFlux;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import reactor.test.StepVerifier;
 
 public final class WebhookPublisherPublishingTest {
-
-    Supplier<PrivateKey> privateKey = () -> {
-        try {
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(2048);
-            KeyPair kp = kpg.generateKeyPair();
-            return kp.getPrivate();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    };
-
-    RSASSASigner signer = new RSASSASigner(privateKey.get());
-    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"), "kid123");
+    
+    JwtService jwtService = new JwtService(new SigningPrivateKey(new WebhookJWKConfig(true)), URI.create("https://aaa")); 
 
     BuildProperties buildProperties = new BuildProperties(new Properties()) {
         @Override

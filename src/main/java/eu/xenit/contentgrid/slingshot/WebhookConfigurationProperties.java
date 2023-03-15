@@ -77,6 +77,12 @@ public class WebhookConfigurationProperties {
         private boolean generateKey = false;
         private URI issuer;
         
+        public WebhookJWKConfig() {}
+        
+        public WebhookJWKConfig(boolean generateKey) {
+            this.generateKey = generateKey;
+        }
+        
         public List<Resource> getRetiredKeys() {
             return retiredKeys;
         }

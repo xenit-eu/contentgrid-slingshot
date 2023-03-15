@@ -19,6 +19,7 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.InMemoryWebhookClientsProvider;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
+import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookJWKConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -26,24 +27,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 public class WebhookPublisherWithoutPublishingTest {
 
-    // TODO add test without required provided
-
     MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    Supplier<PrivateKey> privateKey = () -> {
-        KeyPairGenerator kpg;
-        try {
-            kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(2048);
-            KeyPair kp = kpg.generateKeyPair();
-            return kp.getPrivate();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    };
-
-    RSASSASigner signer = new RSASSASigner(privateKey.get());
-    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"), "kid123");
+    JwtService jwtService = new JwtService(new SigningPrivateKey(new WebhookJWKConfig(true)), URI.create("https://aaa"));
     
     BuildProperties buildProperties = new BuildProperties(new Properties()) {
         @Override

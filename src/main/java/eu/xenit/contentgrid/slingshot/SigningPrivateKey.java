@@ -17,7 +17,7 @@ public class SigningPrivateKey {
 
     private final RSAKey rsaKey;
 
-    public SigningPrivateKey(WebhookJWKConfig jwtConfig) throws JOSEException {
+    public SigningPrivateKey(WebhookJWKConfig jwtConfig) {
         Assert.notNull(jwtConfig, "jwtConfig cannot be null");
         
         if (jwtConfig.isGenerateKey()) {
@@ -25,7 +25,11 @@ public class SigningPrivateKey {
                 LOG.warn("a signing key is configured but a generated key is used");
             }
 
-            rsaKey = new RSAKeyGenerator(2048).keyIDFromThumbprint(true).generate();
+            try {
+                rsaKey = new RSAKeyGenerator(2048).keyIDFromThumbprint(true).generate();
+            } catch (JOSEException e) {
+               throw new RuntimeException("could not auto generate the private key", e);
+            }
         } else {
             Assert.notNull(jwtConfig.getSigningKey(), "jwt.signing-key must be provided when generated key is not used");
 
