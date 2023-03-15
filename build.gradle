@@ -45,6 +45,10 @@ springBoot {
 	buildInfo ()
 }
 
+bootRun {
+    args = ["--spring.profiles.active=bootRun"]
+}
+
 bootBuildImage {
     def dockerImageRepo = "docker.xenit.eu/open-source/contentgrid/${project.name}"
     imageName = "${dockerImageRepo}:${project.version}"
