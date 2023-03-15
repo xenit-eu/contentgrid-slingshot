@@ -24,10 +24,7 @@ public class JwtServiceTest {
     public void when_privateKeyIsValid_jwtShouldBeGeneratedWithClaims()
             throws JOSEException, ParseException {
         
-        WebhookJWKConfig config = new WebhookJWKConfig();
-        config.setGenerateKey(true);
-
-        JwtService jwtService = new JwtService(new SigningPrivateKey(config), URI.create("https://aaa"));
+        JwtService jwtService = new JwtService(new SigningPrivateKey(new WebhookJWKConfig(true)), URI.create("https://aaa"));
 
         Instant now = Instant.now();
         SignedJWT jwt = jwtService.generateJwt(now, "ContentGrid", URI.create("https://endpoint"));
