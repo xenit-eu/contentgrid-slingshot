@@ -19,6 +19,7 @@ import org.springframework.lang.Nullable;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.RSAKey;
 
 import eu.xenit.contentgrid.slingshot.service.JwkService;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
@@ -58,8 +59,8 @@ public class SlingshotConfiguration {
     }
 
     @Bean
-    JwtService jwtService(SigningPrivateKey signingPrivateKey, WebhookConfigurationProperties props) throws JOSEException {
-        return new JwtService(new RSASSASigner(signingPrivateKey.getRSAKey()), props.getSigning().getJwt().getIssuer());
+    JwtService jwtService(SigningPrivateKey signingPrivateKey, WebhookConfigurationProperties props) throws JOSEException {        
+        return new JwtService(signingPrivateKey, props.getSigning().getJwt().getIssuer());
     }
 
     @Bean
