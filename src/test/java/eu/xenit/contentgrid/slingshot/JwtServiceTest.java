@@ -29,7 +29,7 @@ public class JwtServiceTest {
         PrivateKey privateKey2 = new RSAKeyGenerator(2048).generate().toPrivateKey();
 
         RSASSASigner signer = new RSASSASigner(privateKey2);
-        JwtService jwtService = new JwtService(signer, URI.create("https://aaa"));
+        JwtService jwtService = new JwtService(signer, URI.create("https://aaa"), "kid123");
 
         Instant now = Instant.now();
         SignedJWT jwt = jwtService.generateJwt(now, "ContentGrid", URI.create("https://endpoint"));
@@ -44,5 +44,6 @@ public class JwtServiceTest {
         assertEquals(Date.from(now), claims.getIssueTime());
         assertEquals(Date.from(now.plusSeconds(300)), claims.getExpirationTime());        
         assertNotNull(claims.getJWTID(), "jid cannot be null");
+        assertEquals("kid123", jwt.getHeader().getKeyID());
     }    
 }

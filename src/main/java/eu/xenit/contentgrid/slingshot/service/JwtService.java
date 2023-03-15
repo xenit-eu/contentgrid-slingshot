@@ -18,11 +18,14 @@ public class JwtService {
 
     private final RSASSASigner signer;
     private final URI issuer;
+    private final String kid;
 
-    public JwtService(RSASSASigner signer, URI issuer) {
+    public JwtService(RSASSASigner signer, URI issuer, String kid) {
         Assert.notNull(signer, "signer cannot be null");
+        Assert.hasText(kid, "kid cannot be empty");
         this.signer = signer;
         this.issuer = issuer;
+        this.kid = kid;
     }
 
     public SignedJWT generateJwt(Instant instant, String subject, URI audience) {
@@ -40,8 +43,8 @@ public class JwtService {
         if(issuer != null) {
           claimsBuilder.issuer(issuer.toString());
         }
-
-        SignedJWT signedJWT = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).build(),
+        
+        SignedJWT signedJWT = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(kid).build(),
                 claimsBuilder.build());
         try {
             signedJWT.sign(signer);

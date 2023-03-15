@@ -43,7 +43,7 @@ public class WebhookPublisherWithoutPublishingTest {
     };
 
     RSASSASigner signer = new RSASSASigner(privateKey.get());
-    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"));
+    JwtService jwtService = new JwtService(signer, URI.create("https://aaa"), "kid123");
     
     BuildProperties buildProperties = new BuildProperties(new Properties()) {
         @Override
