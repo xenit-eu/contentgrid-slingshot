@@ -192,7 +192,7 @@ public class WebhookPublisher {
 
                     Timer.Sample sample = Timer.start(meterRegistry);
 
-                    String jwt = jwtService.generateJwt(Instant.now(), USER_AGENT_HEADER_VALUE, URI.create(c.endpoint)).serialize();
+                    String jwt = jwtService.generateJwt(Instant.now(), URI.create(c.endpoint)).serialize();
                     LOG.debug("sending message to : '{}' with jwt :  '{}' in header : '{}'",
                             c.endpoint, jwt, CONTENTGRID_TOKEN_HEADER_NAME);
 
