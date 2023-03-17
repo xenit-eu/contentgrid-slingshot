@@ -25,13 +25,11 @@ public class JwtService {
         this.issuer = issuer;
     }
 
-    public SignedJWT generateJwt(Instant instant, String subject, URI audience) {
+    public SignedJWT generateJwt(Instant instant, URI audience) {
         Assert.notNull(instant, "instant cannot be null");
-        Assert.hasText(subject, "subject cannot be null");
         Assert.notNull(audience, "audience cannot be null");
 
         JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
-                .subject(subject)
                 .audience(audience.toString())
                 .expirationTime(Date.from(instant.plusSeconds(300)))
                 .issueTime(Date.from(instant))
