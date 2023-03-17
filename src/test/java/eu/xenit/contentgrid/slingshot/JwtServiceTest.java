@@ -27,13 +27,12 @@ public class JwtServiceTest {
         JwtService jwtService = new JwtService(new SigningPrivateKey(new WebhookJWKConfig(true)), URI.create("https://aaa"));
 
         Instant now = Instant.now();
-        SignedJWT jwt = jwtService.generateJwt(now, "ContentGrid", URI.create("https://endpoint"));
+        SignedJWT jwt = jwtService.generateJwt(now, URI.create("https://endpoint"));
 
         assertNotNull(jwt, "jwt cannot be null");
 
         JWTClaimsSet claims = jwt.getJWTClaimsSet();
 
-        assertEquals("ContentGrid", claims.getSubject());
         assertEquals("https://aaa", claims.getIssuer());
         assertTrue(claims.getAudience().contains("https://endpoint"));
         assertEquals(Date.from(now), claims.getIssueTime());
