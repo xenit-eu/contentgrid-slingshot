@@ -50,7 +50,7 @@ bootRun {
 }
 
 bootBuildImage {
-    def dockerImageRepo = "ghcr.io/xenit-eu/${project.name}"
+    def dockerImageRepo = "ghcr.io/xenit-eu/contentgrid-slingshot"
     imageName = "${dockerImageRepo}:${project.version}"
     tags = "${project.version}".endsWith('SNAPSHOT') ? [ "${dockerImageRepo}:SNAPSHOT" ] : null
 
