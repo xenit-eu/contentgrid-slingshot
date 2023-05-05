@@ -50,10 +50,9 @@ bootRun {
 }
 
 bootBuildImage {
-    def dockerImageRepo = "docker.xenit.eu/open-source/contentgrid/${project.name}"
+    def dockerImageRepo = "ghcr.io/xenit-eu/${project.name}"
     imageName = "${dockerImageRepo}:${project.version}"
-    tags = "${project.version}".endsWith('SNAPSHOT')
-            ? [ "${dockerImageRepo}:SNAPSHOT" ] : null
+    tags = "${project.version}".endsWith('SNAPSHOT') ? [ "${dockerImageRepo}:SNAPSHOT" ] : null
 
     docker {
         publishRegistry {
