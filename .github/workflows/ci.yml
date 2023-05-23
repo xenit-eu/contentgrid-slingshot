@@ -14,9 +14,10 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           java-version: 17
+          distribution: temurin
       - name: Build and Test
         run: ./gradlew build
-      - name: Docker image
+      - name: Docker Image
         if: ${{ github.ref == 'refs/heads/main' || startswith(github.ref, 'refs/tags/') }}
         run: ./gradlew bootBuildImage --publishImage
         env:
