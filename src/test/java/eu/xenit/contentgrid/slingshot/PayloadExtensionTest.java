@@ -4,10 +4,6 @@ import eu.xenit.contentgrid.slingshot.service.JwtService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageHeaders;
-import org.springframework.messaging.support.GenericMessage;
-import org.springframework.messaging.support.MessageBuilder;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -15,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PayloadExtensionTest {
 
@@ -28,18 +26,26 @@ public class PayloadExtensionTest {
 
     @Test
     public void testPayloadExtension() {
-        String payload = "{\n" +
-                "  \"name\": \"Matthias\"\n" +
+        String applicationId = UUID.randomUUID().toString();
+        String deploymentId = UUID.randomUUID().toString();
+        String payload = "{" +
+                "  \"name\":\"Matthias\"" +
+                "}";
+        String expectedPayload = "{" +
+                "\"name\":\"Matthias\"," +
+                "\"applicationId\":\"" + applicationId + "\"," +
+                "\"deploymentId\":\"" + deploymentId + "\"" +
                 "}";
         Map<String, String> headers = new HashMap<>() {{
-            put("application_id", UUID.randomUUID().toString());
-            put("deployment_id", UUID.randomUUID().toString());
+            put("application_id", applicationId);
+            put("deployment_id", deploymentId);
             put("trigger", "");
             put("entity", "");
         }};
         WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(), new SimpleMeterRegistry(), buildProperties.getVersion());
-        
-        publisher.modifyPayload(headers, payload);
+        String modifiedPayload = publisher.modifyPayload(headers, payload);
+
+        assertEquals(expectedPayload, modifiedPayload);
     }
 
 }
