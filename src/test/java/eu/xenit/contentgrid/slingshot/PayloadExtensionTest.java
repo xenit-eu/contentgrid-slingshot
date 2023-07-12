@@ -31,19 +31,15 @@ public class PayloadExtensionTest {
         String payload = "{\n" +
                 "  \"name\": \"Matthias\"\n" +
                 "}";
-        Map<String, Object> headers = new HashMap<>() {{
+        Map<String, String> headers = new HashMap<>() {{
             put("application_id", UUID.randomUUID().toString());
             put("deployment_id", UUID.randomUUID().toString());
             put("trigger", "");
             put("entity", "");
         }};
-        MessageHeaders messageHeaders = new MessageHeaders(headers);
         WebhookPublisher publisher = new WebhookPublisher(jwtService, List.of(), new SimpleMeterRegistry(), buildProperties.getVersion());
-        Message<String> message = MessageBuilder
-                .withPayload(payload)
-                .copyHeaders(messageHeaders)
-                .build();
-        publisher.handleEvent(message);
+        
+        publisher.modifyPayload(headers, payload);
     }
 
 }

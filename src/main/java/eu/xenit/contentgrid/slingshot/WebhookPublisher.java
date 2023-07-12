@@ -95,7 +95,7 @@ public class WebhookPublisher {
         Map<String, String> headersAsStringValues = messageHeaders.entrySet().stream()
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toString()));
 
-        String payload = message.getPayload();
+        String payload = modifyPayload(headersAsStringValues, message.getPayload());
         if (payload != null) {
             PublishingFlux fluxData = publishingFlux(headersAsStringValues, payload);
             int size = fluxData.size;
@@ -168,7 +168,37 @@ public class WebhookPublisher {
         sample.stop(meterRegistry.timer("webhooks", t));
     }
 
-    ObjectNode parseFingerprintHeaders(final Map<String, String> headers) {
+    String modifyPayload(final Map<String, String> headers, final String oldPayload) {
+        ObjectNode fingerprintNode = parseFingerprintHeaders(headers);
+        if (fingerprintNode == null) {
+            LOG.warn("message received: {} with null fingerprints", headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.missing_fingerprint_headers, headers);
+
+            return null;
+        }
+
+        ObjectNode payloadNode = parsePayload(oldPayload);
+        if (payloadNode == null) {
+            LOG.warn("message received: {} with invalid payload", headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headers);
+
+            return null;
+        }
+
+        // Merge fingerprint and payload
+        ObjectNode mergedNode = payloadNode.setAll(fingerprintNode);
+        String payload = convertPayloadToString(mergedNode);
+        if (payload == null) {
+            LOG.warn("message received: {} with invalid merged payload", headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.invalid_merged_payload, headers);
+
+            return null;
+        }
+
+        return payload;
+    }
+
+    private ObjectNode parseFingerprintHeaders(final Map<String, String> headers) {
         String applicationId = headers.get(MANDATORY_HEADERS.application_id.name());
         String deploymentId = headers.get(MANDATORY_HEADERS.deployment_id.name());
 
@@ -186,7 +216,7 @@ public class WebhookPublisher {
         return node;
     }
 
-    ObjectNode parsePayload(String payload) {
+    private ObjectNode parsePayload(String payload) {
         try {
             return objectMapper.readValue(payload, ObjectNode.class);
         } catch (IOException ex) {
@@ -195,7 +225,7 @@ public class WebhookPublisher {
         }
     }
 
-    String convertPayloadToString(ObjectNode payload) {
+    private String convertPayloadToString(ObjectNode payload) {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
@@ -204,35 +234,12 @@ public class WebhookPublisher {
         }
     }
 
-    PublishingFlux publishingFlux(final Map<String, String> headers, final String unextendedPayload) {
+    PublishingFlux publishingFlux(final Map<String, String> headers, final String payload) {
 
         if (headers == null || headers.isEmpty() || !WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             // case were the message did not have all the mandatory headers
             LOG.warn("message received does not contain all mandatory headers: {}", headers);
             recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers != null ? headers : Collections.emptyMap());
-            return new PublishingFlux(Flux.empty(), 0);
-        }
-
-        ObjectNode fingerprintNode = parseFingerprintHeaders(headers);
-        if (fingerprintNode == null) {
-            LOG.warn("message received: {} with null fingerprints", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.missing_fingerprint_headers, headers);
-            return new PublishingFlux(Flux.empty(), 0);
-        }
-
-        ObjectNode payloadNode = parsePayload(unextendedPayload);
-        if (payloadNode == null) {
-            LOG.warn("message received: {} with invalid payload", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headers);
-            return new PublishingFlux(Flux.empty(), 0);
-        }
-
-        // Merge fingerprint and payload
-        ObjectNode mergedNode = payloadNode.setAll(fingerprintNode);
-        String payload = convertPayloadToString(mergedNode);
-        if (payload == null) {
-            LOG.warn("message received: {} with invalid merged payload", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.invalid_merged_payload, headers);
             return new PublishingFlux(Flux.empty(), 0);
         }
 
