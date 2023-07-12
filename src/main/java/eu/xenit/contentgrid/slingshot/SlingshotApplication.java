@@ -9,4 +9,5 @@ public class SlingshotApplication {
     public static void main(String[] args) {
         SpringApplication.run(SlingshotApplication.class, args);
     }
+
 }
