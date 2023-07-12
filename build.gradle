@@ -35,6 +35,9 @@ dependencies {
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'org.springframework.integration:spring-integration-test'
 	testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-stub-runner:4.0.3'
+
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
 }
 
 tasks.named('test') {
