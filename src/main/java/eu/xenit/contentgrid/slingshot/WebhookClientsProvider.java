@@ -25,7 +25,11 @@ import reactor.netty.http.client.HttpClient;
 public interface WebhookClientsProvider {
 
     public static enum MANDATORY_HEADERS {
-        application_id, deployment_id, trigger, entity
+        application_id,
+        deployment_id,
+        trigger,
+        entity,
+
     }
 
     /**

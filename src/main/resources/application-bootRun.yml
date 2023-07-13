@@ -8,7 +8,7 @@ server:
     
 management.endpoints.web.exposure.include: '*'    
 
-logging.level.eu.xenit.contentgrid.webhooks.WebhookPublisher: TRACE 
+logging.level.eu.xenit.contentgrid.webhooks.WebhookPublisher: DEBUG
 
 contentgrid:
   webhooks:
