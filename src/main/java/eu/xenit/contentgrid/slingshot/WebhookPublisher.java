@@ -7,12 +7,10 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
@@ -105,7 +103,7 @@ public class WebhookPublisher {
             }
         } else {
             LOG.warn("message received: {} with null payload", message);
-            recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headersAsStringValues);
+            recordMessageReceivedMetric(MessageReceivedStatus.NULL_PAYLOAD, headersAsStringValues);
         }
     }
 
@@ -133,8 +131,8 @@ public class WebhookPublisher {
         }
 
         WebhookEndpointInvocationStatus webhookInvocationStatus = responseSignal.isOnError()
-                ? WebhookEndpointInvocationStatus.failure
-                : WebhookEndpointInvocationStatus.success;
+                ? WebhookEndpointInvocationStatus.FAILURE
+                : WebhookEndpointInvocationStatus.SUCCESS;
 
 //        TODO check if we need to know each specific exception and create the metric accordingly
 //        Throwable throwable = response.getThrowable();
@@ -149,7 +147,7 @@ public class WebhookPublisher {
         Series series = Series.resolve(httpStatusCode);
         String httpStatusSeries = series != null ? series.name() : "-";
         
-        if (WebhookEndpointInvocationStatus.failure.equals(webhookInvocationStatus)) { 
+        if (WebhookEndpointInvocationStatus.FAILURE.equals(webhookInvocationStatus)) {
           LOG.warn("message could not be delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
         } else {
             LOG.debug("message delivered to : '{}' received http status code '{}'", endpoint, httpStatusCode);
@@ -172,7 +170,7 @@ public class WebhookPublisher {
         ObjectNode fingerprintNode = parseFingerprintHeaders(headers);
         if (fingerprintNode == null) {
             LOG.warn("message received: {} with null fingerprints", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.missing_fingerprint_headers, headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.MISSING_FINGERPRINT_HEADERS, headers);
 
             return null;
         }
@@ -180,7 +178,7 @@ public class WebhookPublisher {
         ObjectNode payloadNode = parsePayload(oldPayload);
         if (payloadNode == null) {
             LOG.warn("message received: {} with invalid payload", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.null_payload, headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.NULL_PAYLOAD, headers);
 
             return null;
         }
@@ -190,7 +188,7 @@ public class WebhookPublisher {
         String payload = convertPayloadToString(mergedNode);
         if (payload == null) {
             LOG.warn("message received: {} with invalid merged payload", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.invalid_merged_payload, headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.INVALID_MERGED_PAYLOAD, headers);
 
             return null;
         }
@@ -199,8 +197,8 @@ public class WebhookPublisher {
     }
 
     private ObjectNode parseFingerprintHeaders(final Map<String, String> headers) {
-        String applicationId = headers.get(MANDATORY_HEADERS.application_id.name());
-        String deploymentId = headers.get(MANDATORY_HEADERS.deployment_id.name());
+        String applicationId = headers.get(MANDATORY_HEADERS.APPLICATION_ID.name());
+        String deploymentId = headers.get(MANDATORY_HEADERS.DEPLOYMENT_ID.name());
 
         if (applicationId == null || deploymentId == null) {
             LOG.warn("applicationId or deploymentId is null, cannot convert to payload");
@@ -243,7 +241,7 @@ public class WebhookPublisher {
         if (headers == null || headers.isEmpty() || !WebhookClientsProvider.hasAllMandatoryHeaders(headers)) {
             // case were the message did not have all the mandatory headers
             LOG.warn("message received does not contain all mandatory headers: {}", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.missing_headers, headers != null ? headers : Collections.emptyMap());
+            recordMessageReceivedMetric(MessageReceivedStatus.MISSING_HEADERS, headers != null ? headers : Collections.emptyMap());
             return new PublishingFlux(Flux.empty(), 0);
         }
 
@@ -251,12 +249,12 @@ public class WebhookPublisher {
         if (matchedClients.isEmpty()) {
             // case where all providers returned an empty list
             LOG.debug("message received does not match any configuration for headers: {}", headers);
-            recordMessageReceivedMetric(MessageReceivedStatus.no_matching_config, headers);
+            recordMessageReceivedMetric(MessageReceivedStatus.NO_MATCHING_CONFIG, headers);
             return new PublishingFlux(Flux.empty(), 0);
         }
 
         // case where we have a valid message
-        recordMessageReceivedMetric(MessageReceivedStatus.valid, headers);
+        recordMessageReceivedMetric(MessageReceivedStatus.VALID, headers);
 
         LOG.debug("{} client(s) configuration matched for headers: {}", matchedClients.size(), headers);
         Flux<ResponseEntity<Void>> flux = Flux
@@ -280,9 +278,9 @@ public class WebhookPublisher {
                             .contentType(MediaType.APPLICATION_JSON)
                             .headers(h -> {
                                 h.set(CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME,
-                                        headers.get(MANDATORY_HEADERS.deployment_id.name()));
+                                        headers.get(MANDATORY_HEADERS.DEPLOYMENT_ID.name()));
                                 h.set(CONTENTGRID_APPLICATION_ID_HEADER_NAME,
-                                        headers.get(MANDATORY_HEADERS.application_id.name()));
+                                        headers.get(MANDATORY_HEADERS.APPLICATION_ID.name()));
                                 h.set(HttpHeaders.USER_AGENT, getUserAgentHeaderValueWithVersion());
                                 h.set(CONTENTGRID_TOKEN_HEADER_NAME, jwt);
                             })
@@ -361,10 +359,16 @@ public class WebhookPublisher {
     }
 
     static enum MessageReceivedStatus {
-        no_matching_config, valid, missing_headers, missing_fingerprint_headers, null_payload, invalid_merged_payload
+        NO_MATCHING_CONFIG,
+        VALID,
+        MISSING_HEADERS,
+        MISSING_FINGERPRINT_HEADERS,
+        NULL_PAYLOAD,
+        INVALID_MERGED_PAYLOAD
     }
 
     static enum WebhookEndpointInvocationStatus {
-        success, failure
+        SUCCESS,
+        FAILURE
     }
 }
