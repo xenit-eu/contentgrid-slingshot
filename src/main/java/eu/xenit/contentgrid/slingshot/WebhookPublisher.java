@@ -208,8 +208,8 @@ public class WebhookPublisher {
 
         // Create object node using Jackson
         ObjectNode fingerprint = objectMapper.createObjectNode();
-        fingerprint.put("applicationId", applicationId);
-        fingerprint.put("deploymentId", deploymentId);
+        fingerprint.put("application_id", applicationId);
+        fingerprint.put("deployment_id", deploymentId);
 
         //  Create originator node using Jackson
         ObjectNode originatorNode = objectMapper.createObjectNode();

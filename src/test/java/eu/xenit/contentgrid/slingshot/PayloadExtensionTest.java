@@ -34,8 +34,8 @@ public class PayloadExtensionTest {
         String expectedPayload = "{" +
                 "\"name\":\"Matthias\"," +
                 "\"originator\":{" +
-                "\"applicationId\":\"" + applicationId + "\"," +
-                "\"deploymentId\":\"" + deploymentId + "\"" +
+                "\"application_id\":\"" + applicationId + "\"," +
+                "\"deployment_id\":\"" + deploymentId + "\"" +
                 "}" +
                 "}";
         Map<String, String> headers = new HashMap<>() {{
