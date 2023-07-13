@@ -197,8 +197,8 @@ public class WebhookPublisher {
     }
 
     private ObjectNode parseFingerprintHeaders(final Map<String, String> headers) {
-        String applicationId = headers.get(MANDATORY_HEADERS.APPLICATION_ID.name());
-        String deploymentId = headers.get(MANDATORY_HEADERS.DEPLOYMENT_ID.name());
+        String applicationId = headers.get(MANDATORY_HEADERS.application_id.name());
+        String deploymentId = headers.get(MANDATORY_HEADERS.deployment_id.name());
 
         if (applicationId == null || deploymentId == null) {
             LOG.warn("applicationId or deploymentId is null, cannot convert to payload");
@@ -278,9 +278,9 @@ public class WebhookPublisher {
                             .contentType(MediaType.APPLICATION_JSON)
                             .headers(h -> {
                                 h.set(CONTENTGRID_DEPLOYMENT_ID_HEADER_NAME,
-                                        headers.get(MANDATORY_HEADERS.DEPLOYMENT_ID.name()));
+                                        headers.get(MANDATORY_HEADERS.deployment_id.name()));
                                 h.set(CONTENTGRID_APPLICATION_ID_HEADER_NAME,
-                                        headers.get(MANDATORY_HEADERS.APPLICATION_ID.name()));
+                                        headers.get(MANDATORY_HEADERS.application_id.name()));
                                 h.set(HttpHeaders.USER_AGENT, getUserAgentHeaderValueWithVersion());
                                 h.set(CONTENTGRID_TOKEN_HEADER_NAME, jwt);
                             })
