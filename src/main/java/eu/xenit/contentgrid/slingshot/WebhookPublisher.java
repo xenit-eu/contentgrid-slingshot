@@ -209,11 +209,15 @@ public class WebhookPublisher {
         }
 
         // Create object node using Jackson
-        ObjectNode node = objectMapper.createObjectNode();
-        node.put("applicationId", applicationId);
-        node.put("deploymentId", deploymentId);
+        ObjectNode fingerprint = objectMapper.createObjectNode();
+        fingerprint.put("applicationId", applicationId);
+        fingerprint.put("deploymentId", deploymentId);
 
-        return node;
+        //  Create originator node using Jackson
+        ObjectNode originatorNode = objectMapper.createObjectNode();
+        originatorNode.set("originator", fingerprint);
+
+        return originatorNode;
     }
 
     private ObjectNode parsePayload(String payload) {
