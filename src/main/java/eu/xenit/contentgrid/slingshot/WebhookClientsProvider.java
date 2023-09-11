@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.util.Assert;
@@ -151,6 +153,7 @@ public interface WebhookClientsProvider {
     }
 
     static class ContentGridApiWebhookClientsProvider implements WebhookClientsProvider {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ContentGridApiWebhookClientsProvider.class);
         static final ConfigProviderStatus CONFIG_LOCATION_MISSING = new ConfigProviderStatus("config_location_missing"); 
         
         private final Map<String, List<WebClientEndpointsConfig>> deploymentIdClientsMap = new HashMap<>();
@@ -198,7 +201,8 @@ public interface WebhookClientsProvider {
                 
                 recordApiConfigLookupCallMetric(ConfigProviderStatus.SUCCESS, headers);               
                 return list != null ? list : Collections.emptyList();
-            } catch (Throwable ex) {
+            } catch (Exception ex) {
+                LOGGER.error("Failed to load webhooks from {}", webhookConfigUrl, ex);
                 recordApiConfigLookupCallMetric(ConfigProviderStatus.FAILURE, headers);
                 return Collections.emptyList();
             }

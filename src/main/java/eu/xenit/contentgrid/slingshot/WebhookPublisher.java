@@ -338,7 +338,8 @@ public class WebhookPublisher {
                 }
                 
                 return configList.stream();
-            } catch (Throwable e) {
+            } catch (Exception e) {
+                LOG.error("Failed to retrieve clients for message with headers {}", headers, e);
                 // This is a safety check
                 return Stream.empty();
             }
