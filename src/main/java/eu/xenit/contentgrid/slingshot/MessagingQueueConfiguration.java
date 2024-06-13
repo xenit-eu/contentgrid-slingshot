@@ -15,14 +15,9 @@ public class MessagingQueueConfiguration {
     public static final String WEBHOOKS_REQUESTTIMEOUT = "webhooks_requestTimeout";
 
     @Bean
-    Queue queue(WebhookConfigurationProperties props) {
-        return new Queue(props.getQueue());
-    }
-
-    @Bean
     public IntegrationFlow routeIncomingAmqpMessagesFlow(ConnectionFactory connectionFactory,
-            WebhookConfigurationProperties props, Queue queue) {
-        return IntegrationFlow.from(Amqp.inboundAdapter(connectionFactory, queue))
+            WebhookConfigurationProperties props) {
+        return IntegrationFlow.from(Amqp.inboundAdapter(connectionFactory, props.getQueue()))
                 .transform(message -> message)
                 .channel(MessagingQueueConfiguration.CHANNEL_NAME).get();
     }
