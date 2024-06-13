@@ -3,13 +3,17 @@ package eu.xenit.contentgrid.slingshot;
 import static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder.okForEmptyJson;
 import static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder.okForJson;
 import static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder.responseDefinition;
+import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 
+import com.github.tomakehurst.wiremock.http.RequestMethod;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -368,7 +372,7 @@ public final class WebhookPublisherPublishingTest {
         void when_apiConfigAndInMemoryConfigProvidersWithTwoMessages_expect_ok() {
             WebhookClientConfig clientConfig1 = new WebhookConfigurationProperties.WebhookClientConfig();
             WebhookClientEndpointConfig clientConfig1EndpointConfig = new WebhookClientEndpointConfig();
-            clientConfig1EndpointConfig.setUri(URI.create("http://mockserver/hook1"));
+            clientConfig1EndpointConfig.setUri(URI.create(wireMock.baseUrl()+"/hook1"));
             clientConfig1.setEndpoints(List.of(clientConfig1EndpointConfig));
             clientConfig1.setFilter(Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create"));
 
@@ -391,7 +395,9 @@ public final class WebhookPublisherPublishingTest {
                     .withHeader(HttpHeaders.CONTENT_TYPE, new EqualToPattern(MediaType.APPLICATION_JSON_VALUE))
                     .withRequestBody(new EqualToPattern("payload_test"))
                     .willReturn(okForEmptyJson()));
-            
+
+            stubFor(post(urlEqualTo("/hook1")).willReturn(okForEmptyJson()));
+
             PublishingFlux fluxData = publisher.publishingFlux(
                     Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create", 
                             "version", "v1", "webhookConfigUrl", baseUrl+"/actuator/webhooks"),
@@ -402,9 +408,13 @@ public final class WebhookPublisherPublishingTest {
             StepVerifier.create(fluxData.getFlux())
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
-                    .expectErrorMatches(ex -> UnknownHostException.class.equals(ex.getCause().getClass()))
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectComplete()
                     .verify();
-            
+
+            verify(exactly(2), RequestPatternBuilder.newRequestPattern(RequestMethod.POST, urlPathEqualTo("/endpoint")));
+            verify(exactly(1), RequestPatternBuilder.newRequestPattern(RequestMethod.POST, urlPathEqualTo("/hook1")));
+
             PublishingFlux fluxData2 = publisher.publishingFlux(
                     Map.of("application_id", "app1", "deployment_id", "abcd",  "entity", "case", "trigger", "create", 
                             "version", "v1", "webhookConfigUrl", baseUrl+"/actuator/webhooks"),
@@ -415,9 +425,13 @@ public final class WebhookPublisherPublishingTest {
             StepVerifier.create(fluxData2.getFlux())
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
                     .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
-                    .expectErrorMatches(ex -> UnknownHostException.class.equals(ex.getCause().getClass()))
+                    .expectNextMatches(result -> result.getStatusCode() == HttpStatus.OK)
+                    .expectComplete()
                     .verify();
-            
+
+            verify(exactly(4), RequestPatternBuilder.newRequestPattern(RequestMethod.POST, urlPathEqualTo("/endpoint")));
+            verify(exactly(2), RequestPatternBuilder.newRequestPattern(RequestMethod.POST, urlPathEqualTo("/hook1")));
+
             //Timer webhooksMetric = meterRegistry.find("webhooks").timer();
             Counter messagesMetric = meterRegistry.find("messages").counter();            
             Counter successApiConfigMetric = meterRegistry.find("api_config_lookups").tag("status", ConfigProviderStatus.SUCCESS.getValue()).counter();
