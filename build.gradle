@@ -25,7 +25,7 @@ dependencies {
 	implementation 'io.projectreactor.netty:reactor-netty'
 	implementation 'org.springframework.integration:spring-integration-amqp'
 		
-	implementation 'com.nimbusds:nimbus-jose-jwt:10.3'	
+	implementation 'com.nimbusds:nimbus-jose-jwt:10.3.1'	
 	runtimeOnly 'org.bouncycastle:bcpkix-jdk15on:1.70'
 	
 	implementation 'io.micrometer:micrometer-core'
