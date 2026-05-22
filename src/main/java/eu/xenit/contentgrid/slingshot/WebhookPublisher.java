@@ -85,7 +85,7 @@ public class WebhookPublisher {
     }
 
     @ServiceActivator(inputChannel = MessagingQueueConfiguration.CHANNEL_NAME)
-    public void handleEvent(Message<String> message) {
+    public void handleEvent(Message<byte[]> message) {
         LOG.trace("message received: {}", message);
 
         MessageHeaders messageHeaders = message.getHeaders();
@@ -93,7 +93,7 @@ public class WebhookPublisher {
         Map<String, String> headersAsStringValues = messageHeaders.entrySet().stream()
                 .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toString()));
 
-        String payload = modifyPayload(headersAsStringValues, message.getPayload());
+        String payload = modifyPayload(headersAsStringValues, new String(message.getPayload()));
         if (payload != null) {
             PublishingFlux fluxData = publishingFlux(headersAsStringValues, payload);
             int size = fluxData.size;
@@ -197,6 +197,9 @@ public class WebhookPublisher {
     }
 
     private ObjectNode parseFingerprintHeaders(final Map<String, String> headers) {
+        headers.put(MANDATORY_HEADERS.application_id.name(), "application_id");
+        headers.put(MANDATORY_HEADERS.deployment_id.name(), "deployment_id");
+
         String applicationId = headers.get(MANDATORY_HEADERS.application_id.name());
         String deploymentId = headers.get(MANDATORY_HEADERS.deployment_id.name());
 

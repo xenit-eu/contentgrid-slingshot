@@ -2,7 +2,8 @@ spring:
   rabbitmq:
     host: localhost
     port: 5672
-    
+    username: slingshot
+    password: password
 server:
   port: ${PORT:7070}    
     
@@ -19,32 +20,9 @@ contentgrid:
         #signing-key:  classpath:/keys/private.key
         #issuer: https://something
 
-#    #queue: content-grid.events
-#    #requestTimeout: 30 
-#    client:            
-#    - filter:
-#        test: fake2
-#        test2: abcd
-#      endpoints:
-#         - uri: http://localhost:9999/hooksite1
-#           secret: abcd
-#         - uri: http://localhost:9999/antivirus
-#           secret: abcd         
-#    - filter:
-#        action: created
-#        application: name1
-#        type: account-state-zip
-#        version: v1
-#        test: fake
-#      endpoints: 
-#        - uri: http://localhost:8888/hooksite1
-#          secret: abcd     
-#    - filter:
-#        action: created
-#        application: name1
-#        type: account-state-zip
-#        version: v1
-#        test: fake
-#      endpoints: 
-#        - uri: http://localhost:8080/hooksite3
-#          secret: abcd     
+    queue: contentgrid.slingshot
+    requestTimeout: 30
+    client:
+    - endpoints:
+         - uri: http://localhost:9001/fts/notify
+           secret: abcd
