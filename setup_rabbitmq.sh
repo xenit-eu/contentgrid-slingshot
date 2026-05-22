@@ -1,0 +1,1 @@
+rabbitmqctl set_permissions -p / slingshot ".*" ".*" ".*"
