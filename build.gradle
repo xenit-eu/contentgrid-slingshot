@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
   toolchain {
-    languageVersion = JavaLanguageVersion.of(17)
+    languageVersion = JavaLanguageVersion.of(21)
   }
 }
         
@@ -18,6 +18,13 @@ repositories {
 }
 
 dependencies {
+
+	implementation ('com.contentgrid.common:contentgrid-common-spring-boot-starter:0.1.5') {
+		capabilities {
+			requireFeature('spring-boot-3')
+		}
+	}
+
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-hateoas'
 	implementation 'org.springframework.boot:spring-boot-starter-integration'

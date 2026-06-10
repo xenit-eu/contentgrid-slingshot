@@ -3,3 +3,13 @@ debug: false
 server:
   forward-headers-strategy: native
 
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: info, health, prometheus
+  health:
+    rabbit:
+      enabled: true
