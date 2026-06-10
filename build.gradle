@@ -18,6 +18,13 @@ repositories {
 }
 
 dependencies {
+
+	implementation ("com.contentgrid.common:contentgrid-common-spring-boot-starter:${cgCommonVersion}") {
+		capabilities {
+			requireFeature('spring-boot-3')
+		}
+	}
+
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-hateoas'
 	implementation 'org.springframework.boot:spring-boot-starter-integration'

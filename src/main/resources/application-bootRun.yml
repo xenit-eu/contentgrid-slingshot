@@ -6,7 +6,17 @@ spring:
 server:
   port: ${PORT:7070}    
     
-management.endpoints.web.exposure.include: '*'    
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  health:
+    rabbit:
+      enabled: true
+
 
 logging.level.eu.xenit.contentgrid.webhooks.WebhookPublisher: DEBUG
 
