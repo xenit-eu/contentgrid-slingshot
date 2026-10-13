@@ -23,7 +23,6 @@ import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebho
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookClientConfigResponse;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ContentGridApiWebhookClientsProvider.WebhookConfigResponse;
 import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.WebClientEndpointsConfig;
-import eu.xenit.contentgrid.slingshot.WebhookClientsProvider.ConfigProviderStatus;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig;
 import eu.xenit.contentgrid.slingshot.WebhookConfigurationProperties.WebhookClientConfig.WebhookClientEndpointConfig;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

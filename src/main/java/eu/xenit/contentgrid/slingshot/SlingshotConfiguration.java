@@ -17,9 +17,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.lang.Nullable;
 
 import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.RSAKey;
 
 import eu.xenit.contentgrid.slingshot.service.JwkService;
 import eu.xenit.contentgrid.slingshot.service.JwtService;
